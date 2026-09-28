@@ -1,16 +1,16 @@
 import streamlit as st
 import requests
 import base64
+import time
 from datetime import datetime
 
 # --- CONFIGURAÇÕES VISUAIS ---
-st.set_page_config(page_title="C.IA Command Center V2.2", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V2.4", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
     .stTextArea textarea { font-size: 14px !important; }
-    .file-card { padding: 10px; border: 1px solid #444; border-radius: 5px; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -47,16 +47,22 @@ def save_github_content(path, content):
     requests.put(url, headers=headers, json=data)
 
 def upload_file_to_github(uploaded_file):
+    # CORREÇÃO CRÍTICA: Volta o cursor do arquivo para o início
+    uploaded_file.seek(0)
+    
     path = f"{folder_anexos}/{uploaded_file.name}"
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
+    
     res_check = requests.get(url, headers=headers).json()
     sha = res_check.get('sha')
+    
     content_encoded = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
     data = {"message": f"Upload anexo: {uploaded_file.name}", "content": content_encoded}
     if sha: data["sha"] = sha
+    
     response = requests.put(url, headers=headers, json=data)
-    return response.status_code in [200, 201]
+    return response.status_code, response.json()
 
 def list_attachments():
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{folder_anexos}"
@@ -90,11 +96,33 @@ with tab1:
         uploaded_files = st.file_uploader("Arquivos", type=["pdf", "docx", "txt", "png", "jpg"], accept_multiple_files=True)
         if uploaded_files and st.button("Subir todos os arquivos"):
             if github_token and repo_owner:
-                for file in uploaded_files: upload_file_to_github(file)
-                current_mem = get_github_content(file_path) or "# Memória do C.IA"
-                names = ", ".join([f.name for f in uploaded_files])
-                save_github_content(file_path, current_mem + f"\n\n## [SISTEMA] Anexos Adicionados: {names}")
-                st.success(f"✅ {len(uploaded_files)} arquivos subidos!")
+                success_list = []
+                error_list = []
+                
+                progress_bar = st.progress(0)
+                for i, file in enumerate(uploaded_files):
+                    # Debug visual: Mostra qual arquivo está sendo processado
+                    st.write(f"Processando: {file.name}...")
+                    
+                    status, res_json = upload_file_to_github(file)
+                    if status in [200, 201]:
+                        success_list.append(file.name)
+                    else:
+                        error_list.append(f"{file.name} (Erro: {status})")
+                    
+                    # Evita rate limit do GitHub
+                    time.sleep(0.5)
+                    progress_bar.progress((i + 1) / len(uploaded_files))
+                
+                if success_list:
+                    current_mem = get_github_content(file_path) or "# Memória do C.IA"
+                    date_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    names = ", ".join(success_list)
+                    save_github_content(file_path, current_mem + f"\n\n## [SISTEMA] Anexos Adicionados: {names}")
+                    st.success(f"✅ {len(success_list)} arquivos subidos!")
+                
+                if error_list:
+                    st.error(f"❌ Falhas: {', '.join(error_list)}")
             else: st.error("Preencha as configurações na barra lateral!")
 
 with tab2:
@@ -114,6 +142,8 @@ with tab2:
 
 with tab3:
     st.write("### 📚 Indexador de Documentos")
+    if st.button("🔄 Atualizar Lista de Arquivos"):
+        st.rerun()
     st.info("Use as IAs para resumir os arquivos e cole o resumo aqui para indexar a busca.")
     files = list_attachments()
     if files:
@@ -122,7 +152,6 @@ with tab3:
         if st.button("Salvar no Catálogo"):
             if github_token and repo_owner:
                 catalog = get_github_content(catalog_path) or "# Catálogo de Anexos"
-                # Remove resumo antigo do mesmo arquivo se existir
                 lines = catalog.split("\n")
                 new_lines = [l for l in lines if f"FILE: {selected_file}" not in l]
                 updated_catalog = "\n".join(new_lines) + f"\n\nFILE: {selected_file}\nRESUMO: {summary}"
@@ -130,7 +159,7 @@ with tab3:
                 st.success("✅ Arquivo indexado com sucesso!")
             else: st.error("Preencha as configurações na barra lateral!")
     else:
-        st.write("Nenhum anexo encontrado para indexar.")
+        st.warning("Nenhum anexo encontrado na pasta /anexos do GitHub.")
 
 with tab4:
     st.write("### 🔍 Pesquisa Global (Memória + Catálogo)")
@@ -139,13 +168,11 @@ with tab4:
         if github_token and repo_owner:
             mem = get_github_content(file_path)
             cat = get_github_content(catalog_path)
-            
             st.write("#### 📝 Na Memória:")
             if search_term.lower() in mem.lower():
                 for entry in mem.split("## [ENTRY]"):
                     if search_term.lower() in entry.lower(): st.markdown(f"--- \n## [ENTRY]{entry}")
             else: st.write("Nada encontrado na memória.")
-            
             st.write("#### 📁 Nos Arquivos (Catálogo):")
             if search_term.lower() in cat.lower():
                 for item in cat.split("FILE: "):
