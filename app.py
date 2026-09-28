@@ -4,13 +4,13 @@ import base64
 from datetime import datetime
 
 # --- CONFIGURAÇÕES VISUAIS ---
-st.set_page_config(page_title="C.IA Command Center V2", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V2.2", page_icon="🧠", layout="wide")
 
-# Estilização para melhorar o visual
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
     .stTextArea textarea { font-size: 14px !important; }
+    .file-card { padding: 10px; border: 1px solid #444; border-radius: 5px; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -20,6 +20,7 @@ github_token = st.sidebar.text_input("GitHub Token", type="password")
 repo_owner = st.sidebar.text_input("Usuário GitHub")
 repo_name = st.sidebar.text_input("Nome do Repo (SOI_BRAIN)")
 file_path = "MEMORIA.md"
+catalog_path = "CATALOGO_ANEXOS.md"
 folder_anexos = "anexos"
 
 st.title("🧠 Centro de Comando da C.IA")
@@ -27,37 +28,33 @@ st.subheader("Orquestração de Guardiões do SOI")
 
 # --- FUNÇÕES DE CONEXÃO GITHUB ---
 
-def get_memory():
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{file_path}"
+def get_github_content(path):
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
     if 'content' in res:
         return base64.b64decode(res['content']).decode('utf-8')
-    return "# Memória do C.IA\nIniciando registros..."
+    return ""
 
-def save_memory(new_content):
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{file_path}"
+def save_github_content(path, content):
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
     sha = res.get('sha')
-    encoded = base64.b64encode(new_content.encode('utf-8')).decode('utf-8')
-    data = {"message": "Update Memória C.IA", "content": encoded, "sha": sha}
+    encoded = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+    data = {"message": "Update SOI Knowledge", "content": encoded}
+    if sha: data["sha"] = sha
     requests.put(url, headers=headers, json=data)
 
 def upload_file_to_github(uploaded_file):
-    # Caminho do arquivo dentro da pasta anexos
     path = f"{folder_anexos}/{uploaded_file.name}"
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
-    
-    # Verifica se o arquivo já existe para pegar o SHA
     res_check = requests.get(url, headers=headers).json()
     sha = res_check.get('sha')
-    
     content_encoded = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
     data = {"message": f"Upload anexo: {uploaded_file.name}", "content": content_encoded}
     if sha: data["sha"] = sha
-    
     response = requests.put(url, headers=headers, json=data)
     return response.status_code in [200, 201]
 
@@ -70,77 +67,88 @@ def list_attachments():
     return []
 
 # --- INTERFACE PRINCIPAL ---
-tab1, tab2, tab3 = st.tabs(["📥 Alimentar C.IA", "📤 Extrair Briefing", "🔍 Pesquisar Memória"])
+tab1, tab2, tab3, tab4 = st.tabs(["📥 Alimentar C.IA", "📤 Extrair Briefing", "📚 Catálogo de Anexos", "🔍 Pesquisar Memória"])
 
 with tab1:
     col1, col2 = st.columns([2, 1])
-    
     with col1:
         st.write("### Registrar Insight de Guardião")
         ia_name = st.selectbox("Qual IA?", ["Claude", "Gemini", "ChatGPT", "Copilot", "Meta", "Perplexity", "Dola", "Grok", "DeepSeek", "Qwen", "Zapia", "Cursor", "Outra"])
-        
-        # Campo de texto com contador
-        insight = st.text_area("O que a IA diz?", height=300, placeholder="Cole aqui a decisão ou insight da IA...")
-        
-        # Contador de caracteres
+        insight = st.text_area("O que a IA diz?", height=300)
         st.caption(f"Tamanho do texto: {len(insight)} caracteres")
-        
         if st.button("Sincronizar com GitHub"):
             if github_token and repo_owner:
-                current_mem = get_memory()
+                current_mem = get_github_content(file_path) or "# Memória do C.IA"
                 date_str = datetime.now().strftime("%d/%m/%Y %H:%M")
                 update = f"\n\n## [ENTRY] Guardião: {ia_name} | Data: {date_str}\n{insight}"
-                save_memory(current_mem + update)
-                st.success("✅ Insight registrado no Cérebro do SOI!")
-            else:
-                st.error("Preencha as configurações na barra lateral!")
+                save_github_content(file_path, current_mem + update)
+                st.success("✅ Insight registrado!")
+            else: st.error("Preencha as configurações na barra lateral!")
 
     with col2:
         st.write("### 📁 Upload de Anexos")
-        uploaded_file = st.file_uploader("Escolha um arquivo", type=["pdf", "docx", "txt", "png", "jpg"])
-        if uploaded_file is not None:
-            if st.button("Subir Arquivo para o GitHub"):
-                if github_token and repo_owner:
-                    if upload_file_to_github(uploaded_file):
-                        st.success(f"✅ Arquivo {uploaded_file.name} salvo em /anexos!")
-                    else:
-                        st.error("Erro ao subir arquivo. Verifique o Token.")
-                else:
-                    st.error("Preencha as configurações na barra lateral!")
+        uploaded_files = st.file_uploader("Arquivos", type=["pdf", "docx", "txt", "png", "jpg"], accept_multiple_files=True)
+        if uploaded_files and st.button("Subir todos os arquivos"):
+            if github_token and repo_owner:
+                for file in uploaded_files: upload_file_to_github(file)
+                current_mem = get_github_content(file_path) or "# Memória do C.IA"
+                names = ", ".join([f.name for f in uploaded_files])
+                save_github_content(file_path, current_mem + f"\n\n## [SISTEMA] Anexos Adicionados: {names}")
+                st.success(f"✅ {len(uploaded_files)} arquivos subidos!")
+            else: st.error("Preencha as configurações na barra lateral!")
 
 with tab2:
     st.write("### Gerar Briefing para Nova IA")
     if st.button("Gerar Briefing Atualizado"):
         if github_token and repo_owner:
-            mem = get_memory()
+            mem = get_github_content(file_path)
+            catalog = get_github_content(catalog_path)
             files = list_attachments()
-            files_str = ", ".join(files) if files else "Nenhum anexo disponível."
-            
-            briefing = (
-                f"Olá, você é um Guardião do C.IA no projeto SOI (Sistema Operativo e Intelligenza).\n\n"
-                f"Sua missão é atuar como especialista multidisciplinar. Abaixo está a MEMÓRIA ATUALIZADA do projeto.\n\n"
-                f"📁 ARQUIVOS DISPONÍVEIS NO REPOSITÓRIO: {files_str}\n\n"
-                f"--- MEMÓRIA ATUAL ---\n{mem}\n---\n\n"
-                f"Com base nisso, qual sua análise?"
-            )
+            files_str = ", ".join(files) if files else "Nenhum anexo."
+            briefing = (f"Olá, você é um Guardião do C.IA no projeto SOI.\n\n"
+                       f"📁 ARQUIVOS NO REPOSITÓRIO: {files_str}\n"
+                       f"📖 RESUMOS DO CATÁLAGO:\n{catalog}\n\n"
+                       f"--- MEMÓRIA ATUAL ---\n{mem}\n---\n\nQual sua análise?")
             st.text_area("Copie e cole na IA:", value=briefing, height=500)
-        else:
-            st.error("Preencha as configurações na barra lateral!")
+        else: st.error("Preencha as configurações na barra lateral!")
 
 with tab3:
-    st.write("### Buscar na Memória do SOI")
-    search_term = st.text_input("Digite a palavra-chave (ex: 'Multi-tenant' ou 'Pizzas')")
+    st.write("### 📚 Indexador de Documentos")
+    st.info("Use as IAs para resumir os arquivos e cole o resumo aqui para indexar a busca.")
+    files = list_attachments()
+    if files:
+        selected_file = st.selectbox("Selecione o arquivo para indexar:", files)
+        summary = st.text_area(f"Resumo do arquivo {selected_file}:", height=150)
+        if st.button("Salvar no Catálogo"):
+            if github_token and repo_owner:
+                catalog = get_github_content(catalog_path) or "# Catálogo de Anexos"
+                # Remove resumo antigo do mesmo arquivo se existir
+                lines = catalog.split("\n")
+                new_lines = [l for l in lines if f"FILE: {selected_file}" not in l]
+                updated_catalog = "\n".join(new_lines) + f"\n\nFILE: {selected_file}\nRESUMO: {summary}"
+                save_github_content(catalog_path, updated_catalog)
+                st.success("✅ Arquivo indexado com sucesso!")
+            else: st.error("Preencha as configurações na barra lateral!")
+    else:
+        st.write("Nenhum anexo encontrado para indexar.")
+
+with tab4:
+    st.write("### 🔍 Pesquisa Global (Memória + Catálogo)")
+    search_term = st.text_input("O que deseja buscar?")
     if search_term:
         if github_token and repo_owner:
-            mem = get_memory()
+            mem = get_github_content(file_path)
+            cat = get_github_content(catalog_path)
+            
+            st.write("#### 📝 Na Memória:")
             if search_term.lower() in mem.lower():
-                st.success(f"Encontrado(s) menção(ões) a '{search_term}'!")
-                # Divide a memória por entradas para mostrar apenas a parte relevante
-                entries = mem.split("## [ENTRY]")
-                found_entries = [e for e in entries if search_term.lower() in e.lower()]
-                for entry in found_entries:
-                    st.markdown(f"--- \n## [ENTRY]{entry}")
-            else:
-                st.warning("Nenhuma menção encontrada na memória atual.")
-        else:
-            st.error("Preencha as configurações na barra lateral!")
+                for entry in mem.split("## [ENTRY]"):
+                    if search_term.lower() in entry.lower(): st.markdown(f"--- \n## [ENTRY]{entry}")
+            else: st.write("Nada encontrado na memória.")
+            
+            st.write("#### 📁 Nos Arquivos (Catálogo):")
+            if search_term.lower() in cat.lower():
+                for item in cat.split("FILE: "):
+                    if search_term.lower() in item.lower(): st.markdown(f"--- \n**FILE:** {item}")
+            else: st.write("Nada encontrado no catálogo.")
+        else: st.error("Preencha as configurações na barra lateral!")
