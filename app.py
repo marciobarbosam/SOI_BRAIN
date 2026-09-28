@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 # --- CONFIGURAÇÕES VISUAIS ---
-st.set_page_config(page_title="C.IA Command Center V2.4", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V2.5", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
@@ -14,11 +14,20 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Sidebar para configurações secretas
+# --- CARREGAMENTO DE SECRETS (COFRE) ---
+# Tenta ler do cofre do Streamlit, se não existir, deixa vazio
+secret_token = st.secrets.get("GITHUB_TOKEN", "")
+secret_user = st.secrets.get("GITHUB_USER", "")
+secret_repo = st.secrets.get("GITHUB_REPO", "")
+
+# Sidebar para configurações
 st.sidebar.title("⚙️ Configurações MAB_Master")
-github_token = st.sidebar.text_input("GitHub Token", type="password")
-repo_owner = st.sidebar.text_input("Usuário GitHub")
-repo_name = st.sidebar.text_input("Nome do Repo (SOI_BRAIN)")
+
+# Agora os campos já vêm preenchidos com o que está no cofre!
+github_token = st.sidebar.text_input("GitHub Token", value=secret_token, type="password")
+repo_owner = st.sidebar.text_input("Usuário GitHub", value=secret_user)
+repo_name = st.sidebar.text_input("Nome do Repo", value=secret_repo)
+
 file_path = "MEMORIA.md"
 catalog_path = "CATALOGO_ANEXOS.md"
 folder_anexos = "anexos"
@@ -29,6 +38,7 @@ st.subheader("Orquestração de Guardiões do SOI")
 # --- FUNÇÕES DE CONEXÃO GITHUB ---
 
 def get_github_content(path):
+    if not github_token or not repo_owner: return ""
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
@@ -37,6 +47,7 @@ def get_github_content(path):
     return ""
 
 def save_github_content(path, content):
+    if not github_token or not repo_owner: return
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
@@ -47,24 +58,21 @@ def save_github_content(path, content):
     requests.put(url, headers=headers, json=data)
 
 def upload_file_to_github(uploaded_file):
-    # CORREÇÃO CRÍTICA: Volta o cursor do arquivo para o início
+    if not github_token or not repo_owner: return False
     uploaded_file.seek(0)
-    
     path = f"{folder_anexos}/{uploaded_file.name}"
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
-    
     res_check = requests.get(url, headers=headers).json()
     sha = res_check.get('sha')
-    
     content_encoded = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
     data = {"message": f"Upload anexo: {uploaded_file.name}", "content": content_encoded}
     if sha: data["sha"] = sha
-    
     response = requests.put(url, headers=headers, json=data)
-    return response.status_code, response.json()
+    return response.status_code in [200, 201]
 
 def list_attachments():
+    if not github_token or not repo_owner: return []
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{folder_anexos}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
@@ -97,32 +105,19 @@ with tab1:
         if uploaded_files and st.button("Subir todos os arquivos"):
             if github_token and repo_owner:
                 success_list = []
-                error_list = []
-                
                 progress_bar = st.progress(0)
                 for i, file in enumerate(uploaded_files):
-                    # Debug visual: Mostra qual arquivo está sendo processado
                     st.write(f"Processando: {file.name}...")
-                    
-                    status, res_json = upload_file_to_github(file)
-                    if status in [200, 201]:
+                    if upload_file_to_github(file):
                         success_list.append(file.name)
-                    else:
-                        error_list.append(f"{file.name} (Erro: {status})")
-                    
-                    # Evita rate limit do GitHub
                     time.sleep(0.5)
                     progress_bar.progress((i + 1) / len(uploaded_files))
-                
                 if success_list:
                     current_mem = get_github_content(file_path) or "# Memória do C.IA"
                     date_str = datetime.now().strftime("%d/%m/%Y %H:%M")
                     names = ", ".join(success_list)
                     save_github_content(file_path, current_mem + f"\n\n## [SISTEMA] Anexos Adicionados: {names}")
                     st.success(f"✅ {len(success_list)} arquivos subidos!")
-                
-                if error_list:
-                    st.error(f"❌ Falhas: {', '.join(error_list)}")
             else: st.error("Preencha as configurações na barra lateral!")
 
 with tab2:
@@ -142,9 +137,7 @@ with tab2:
 
 with tab3:
     st.write("### 📚 Indexador de Documentos")
-    if st.button("🔄 Atualizar Lista de Arquivos"):
-        st.rerun()
-    st.info("Use as IAs para resumir os arquivos e cole o resumo aqui para indexar a busca.")
+    if st.button("🔄 Atualizar Lista de Arquivos"): st.rerun()
     files = list_attachments()
     if files:
         selected_file = st.selectbox("Selecione o arquivo para indexar:", files)
@@ -158,8 +151,7 @@ with tab3:
                 save_github_content(catalog_path, updated_catalog)
                 st.success("✅ Arquivo indexado com sucesso!")
             else: st.error("Preencha as configurações na barra lateral!")
-    else:
-        st.warning("Nenhum anexo encontrado na pasta /anexos do GitHub.")
+    else: st.warning("Nenhum anexo encontrado.")
 
 with tab4:
     st.write("### 🔍 Pesquisa Global (Memória + Catálogo)")
