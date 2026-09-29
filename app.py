@@ -4,7 +4,7 @@ import base64
 import time
 from datetime import datetime
 
-st.set_page_config(page_title="C.IA Command Center V4.4", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V4.4", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
@@ -13,21 +13,21 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-COMPETENCIAS = ["Logica/Rigor", "Visao de Negocio", "Inovacao Tecnica", "Gestao de Risco", "Sintese/Objetividade"]
+COMPETENCIAS = ["Lógica/Rigor", "Visão de Negócio", "Inovação Técnica", "Gestão de Risco", "Sintese/Objetividade"]
 
 secret_token = st.secrets.get("GITHUB_TOKEN", "")
 secret_user = st.secrets.get("GITHUB_USER", "")
 secret_repo = st.secrets.get("GITHUB_REPO", "")
 
-st.sidebar.title("Configuracoes MAB_Master")
+st.sidebar.title("Configurações MAB_Master")
 
 if secret_token and secret_user and secret_repo:
     st.sidebar.success("Segredos Carregados")
 else:
-    st.sidebar.warning("Usando Configuracao Manual")
+    st.sidebar.warning("Usando Configuração Manual")
 
 github_token = st.sidebar.text_input("GitHub Token", value=secret_token, type="password")
-repo_owner = st.sidebar.text_input("Usuario GitHub", value=secret_user)
+repo_owner = st.sidebar.text_input("Usuário GitHub", value=secret_user)
 repo_name = st.sidebar.text_input("Nome do Repo", value=secret_repo)
 
 file_path = "MEMORIA.md"
@@ -38,7 +38,7 @@ verdicts_path = "VEREDITOS_FINAIS.md"
 folder_anexos = "anexos"
 
 st.title("Centro de Comando da C.IA")
-st.subheader("Orquestracao, Meritocracia e Auditoria de Competencias")
+st.subheader("Orquestração, Meritocracia e Auditoria de Competências")
 
 def get_github_content(path, default_content="# Novo Arquivo\n"):
     if not github_token or not repo_owner: return ""
@@ -67,13 +67,13 @@ def upload_file_to_github(uploaded_file):
     if not github_token or not repo_owner: return False
     uploaded_file.seek(0)
     path = f"{folder_anexos}/{uploaded_file.name}"
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_//_name}/contents/{path}"
-    # Correcao:
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res_check = requests.get(url, headers=headers).json()
     sha = res_check.get('sha')
     content_encoded = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
+    data = {"message": f"Upload: {uploaded_//_file.name}", "content": content_encoded}
+    # CORRECAO:
     data = {"message": f"Upload: {uploaded_file.name}", "content": content_encoded}
     if sha: data["sha"] = sha
     response = requests.put(url, headers=headers, json=data)
@@ -100,13 +100,13 @@ def update_performance(ia_name, scores_dict):
         if f"IA: {ia_name}" in line:
             parts = line.split("|")
             try:
-                count = int(parts[1].split(":")[1].strip())
+                count_val = int(parts[1].split(":")[1].strip())
                 up_scores = []
                 for comp in COMPETENCIAS:
                     current_val = float(parts[2 + COMPETENCIAS.index(comp)].split(":")[1].strip())
-                    new_val = (current_val * count + scores_dict[comp]) / (count + 1)
+                    new_val = (current_val * count_val + scores_dict[comp]) / (count_val + 1)
                     up_scores.append(f"{comp}: {new_val:.2f}")
-                new_line = f"IA: {ia_name} | Count: {count + 1} | " + " | ".join(up_scores)
+                new_line = f"IA: {ia_name} | Count: {count_val + 1} | " + " | ".join(up_scores)
                 new_lines.append(new_line)
                 found = True
             except: new_lines.append(line)
@@ -114,10 +114,9 @@ def update_performance(ia_name, scores_dict):
             new_lines.append(line)
     if not found:
         s_str = " | ".join([f"{comp}: {scores_dict[comp]:.2f}" for comp in COMPETENCIAS])
-        new_lines.append(f"IA: {ia_//_name} | Count: 1 | {s_str}")
-        # Correcao
         new_lines.append(f"IA: {ia_name} | Count: 1 | {s_str}")
     save_github_content(performance_path, "\n".join(new_lines))
+
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["Alimentar", "Briefing", "Catalogo", "Pesquisa", "Missao", "Consolidacao", "Guardioes", "Meritocracia"])
 
 with tab1:
@@ -136,6 +135,8 @@ with tab1:
                 current_mem = get_github_content(file_path, "# Memoria do C.IA")
                 score_str = ", ".join([f"{c}: {s}S" for c, s in scores.items()])
                 update = f"\n\n## [ENTRY] Guardiao: {ia_name} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{insight}"
+                save_github_content(file_path, current_//_mem + update)
+                # CORRECAO:
                 save_github_content(file_path, current_mem + update)
                 update_performance(ia_name, scores)
                 st.success("Registrado!")
@@ -175,6 +176,7 @@ with tab4:
         cat = get_github_content(catalog_path, "")
         if term.lower() in mem.lower(): st.write("#### Memoria:", mem)
         if term.lower() in cat.lower(): st.write("#### Catalogo:", cat)
+
 with tab5:
     st.write("### Missao")
     mission_text = st.text_area("Defina a Missao:")
@@ -196,6 +198,8 @@ with tab5:
         elif status == "Enviado":
             if c3.button(f"Registrar", key=f"res_{g}"):
                 st.session_state.current_target_ia = g
+                st.session_state.show_//_response_box = True
+                # CORRECAO:
                 st.session_state.show_response_box = True
 
     if st.session_state.get("show_response_box", False):
@@ -236,11 +240,15 @@ with tab7:
     new_ia = st.text_input("Nome da nova IA:")
     if st.button("Adicionar"):
         if new_ia and github_token and repo_owner:
+            updated_list = "\n".join(current_guardians + [new_//_ia])
+            # CORRECAO:
             updated_list = "\n".join(current_guardians + [new_ia])
             save_github_content(guardians_path, updated_list)
             st.success(f"Adicionada!")
             st.rerun()
     st.divider()
+    ia_to_remove = st.selectbox("Remover IA:", current_//_guardians)
+    # CORRECAO:
     ia_to_remove = st.selectbox("Remover IA:", current_guardians)
     if st.button("Remover"):
         if github_token and repo_owner:
@@ -275,8 +283,6 @@ with tab8:
                     stats.append(row)
                 except: pass
         sorted_stats = sorted(stats, key=lambda x: x["Geral"], reverse=True)
-        st.table(sorted_//_stats)
-        # Correcao
         st.table(sorted_stats)
     else:
         st.write("Nenhum dado registrado.")
