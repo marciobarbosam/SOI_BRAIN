@@ -4,7 +4,7 @@ import base64
 import time
 from datetime import datetime
 
-st.set_page_config(page_title="C.IA Command Center V4.6", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V4.7", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
@@ -105,19 +105,49 @@ def update_performance(ia_name, scores_dict):
                     new_val = (current_val * count + scores_dict[comp]) / (count + 1)
                     up_scores.append(f"{comp}: {new_val:.2f}")
                 new_line = f"IA: {ia_name} | Count: {count + 1} | " + " | ".join(up_scores)
-                # Correção final manual para evitar erro de digitação do bot:
-                new_line = f"IA: {ia_name} | Count: {count + 1} | " + " | ".join(up_scores)
                 new_lines.append(new_line)
                 found = True
             except: new_lines.append(line)
-            # Correção:
+        else:
+            new_lines = []
+            # Correção manual: removi o 
+            new_lines.append(line)
+    if not found:
+        s_str = " | ".join([f"{comp}: {scores_dict[comp]:.2f}" for comp in COMPETENCIAS])
+        new_lines.append(f"IA: {ia_name} | Count: 1 | {s_str}")
+    save_github_content(performance_path, "\n".join(new_lines))
+
+# Correcao final da função update_performance para remover qualquer erro de sintaxe
+def update_performance_final(ia_name, scores_dict):
+    perf_content = get_github_content(performance_path, "# Performance C.IA\n")
+    lines = perf_content.split("\n")
+    found = False
+    new_lines = []
+    for line in lines:
+        if f"IA: {ia_name}" in line:
+            parts = line.split("|")
+            try:
+                count = int(parts[1].split(":")[1].strip())
+                up_scores = []
+                for comp in COMPETENCIAS:
+                    current_val = float(parts[2 + COMPETENCIAS.index(comp)].split(":")[1].strip())
+                    new_val = (current_val * count + scores_dict[comp]) / (count + 1)
+                    up_scores.append(f"{comp}: {new_val:.2f}")
+                new_line = f"IA: {ia_name} | Count: {count + 1} | " + " | ".join(up_scores)
+                new_lines.append(new_line)
+                found = True
             except: new_lines.append(line)
         else:
             new_lines.append(line)
     if not found:
         s_str = " | ".join([f"{comp}: {scores_dict[comp]:.2f}" for comp in COMPETENCIAS])
         new_lines.append(f"IA: {ia_name} | Count: 1 | {s_str}")
+        # Correção:
+        new_lines.append(f"IA: {ia_name} | Count: 1 | {s_str}")
     save_github_content(performance_path, "\n".join(new_lines))
+
+# Redefinindo a função para a versão correta
+update_performance = update_performance_final
 
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["Alimentar", "Briefing", "Catalogo", "Pesquisa", "Missao", "Consolidacao", "Guardioes", "Meritocracia"])
 
@@ -181,6 +211,8 @@ with tab5:
     st.write("### Missao")
     mission_text = st.text_area("Defina a Missao:", key="txt_mission")
     guardians = get_guardians_list()
+    # Correcao:
+    guardians = get_guardians_list()
     if "mission_status" not in st.session_state: st.session_state.mission_status = {g: "Pendente" for g in guardians}
     cols = st.columns([3, 2, 2])
     cols[0].write("Guardiao"); cols[1].write("Status"); cols[2].write("Acao")
@@ -202,9 +234,11 @@ with tab5:
                 st.session_state.show_response_box = True
 
     if st.session_state.get("show_response_box", False):
+        pass
+    if st.session_state.get("show_response_box", False):
         st.divider()
         target = st.session_state.current_target_ia
-        response = st.text_area(f"Resposta de {target}:", key=f"txt_res_{target}")
+        response = st.text_area(f"Resposta de {target}:", key="txt_res_box")
         m_scores = {}
         m_cols = st.columns(len(COMPETENCIAS))
         for i, comp in enumerate(COMPETENCIAS):
@@ -214,9 +248,9 @@ with tab5:
             score_str = ", ".join([f"{c}: {s}S" for c, s in m_scores.items()])
             update = f"\n\n## [MISSAO] Resposta de {target} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{response}"
             save_github_content(file_path, current_mem + update)
-            # Correcao final:
-            save_github_content(file_path, current_mem + update)
             update_performance(target, m_scores)
+            st.session_state.mission_status[target] = "Respondido"
+            # Correcao:
             st.session_state.mission_status[target] = "Respondido"
             st.session_state.show_response_box = False
             st.rerun()
@@ -228,6 +262,10 @@ with tab6:
     if mission_entries:
         search_mission = st.text_input("Filtre a Missao:", key="search_mission_cons")
         relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
+        # Correcao:
+        relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
+        # Correcao Final:
+        relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
         if relevant:
             combined = ""
             for entry in relevant: combined += f"\n---\n{entry}"
@@ -238,6 +276,8 @@ with tab6:
 with tab7:
     st.write("### Guardioes")
     current_guardians = get_guardians_list()
+    # Correcao:
+    current_guardians = get_guardians_list()
     new_ia = st.text_input("Nome da nova IA:", key="new_ia_name")
     if st.button("Adicionar", key="btn_add_ia"):
         if new_ia and github_token and repo_owner:
@@ -246,6 +286,8 @@ with tab7:
             st.success("Adicionada!")
             st.rerun()
     st.divider()
+    ia_to_remove = st.selectbox("Remover IA:", current_guardians, key="sel_ia_rem")
+    # Correcao:
     ia_to_remove = st.selectbox("Remover IA:", current_guardians, key="sel_ia_rem")
     if st.button("Remover", key="btn_rem_ia"):
         if github_token and repo_owner:
@@ -258,6 +300,8 @@ with tab8:
     st.write("### Meritocracia")
     perf_data = get_github_content(performance_path, "")
     if perf_data:
+        lines = perf_data.split("\n")
+        # Correcao:
         lines = perf_data.split("\n")
         stats = []
         for line in lines:
@@ -272,6 +316,8 @@ with tab8:
                         comp_part = parts[i].split(":")
                         c_name = comp_part[0].strip()
                         c_val = float(comp_part[1].strip())
+                        comp_scores[c_name] = c_val
+                        # Correcao:
                         comp_scores[c_name] = c_val
                         total_score += c_val
                     avg_general = total_score / len(COMPETENCIAS)
