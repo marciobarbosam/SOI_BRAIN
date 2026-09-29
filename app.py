@@ -4,7 +4,7 @@ import base64
 import time
 from datetime import datetime
 
-st.set_page_config(page_title="C.IA Command Center V4.1", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V4.2", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
@@ -54,6 +54,7 @@ def get_github_content(path, default_content="# Novo Arquivo\n"):
 
 def save_github_content(path, content):
     if not github_token or not repo_owner: return
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_//_name}/contents/{path}"
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
@@ -101,8 +102,8 @@ def update_performance(ia_name, scores_dict):
                 count = int(parts[1].split(":")[1].strip())
                 up_scores = []
                 for comp in COMPETENCIAS:
-                    cur_val = float(parts[2 + COMPETENCIAS.index(comp)].split(":")[1].strip())
-                    new_val = (cur_val * count + scores_dict[comp]) / (count + 1)
+                    current_val = float(parts[2 + COMPETENCIAS.index(comp)].split(":")[1].strip())
+                    new_val = (current_val * count + scores_dict[comp]) / (count + 1)
                     up_scores.append(f"{comp}: {new_val:.2f}")
                 new_line = f"IA: {ia_name} | Count: {count + 1} | " + " | ".join(up_scores)
                 new_lines.append(new_line)
@@ -113,4 +114,6 @@ def update_performance(ia_name, scores_dict):
     if not found:
         s_str = " | ".join([f"{comp}: {scores_dict[comp]:.2f}" for comp in COMPETENCIAS])
         new_lines.append(f"IA: {ia_name} | Count: 1 | {s_str}")
-    save_github_content(performance_path,*
+    save_github_content(performance_path, "\n".join(new_lines))
+
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["📥 Alimentar", "📤 Brief](streamdown:incomplete-link)
