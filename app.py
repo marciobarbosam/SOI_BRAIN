@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 # --- CONFIGURAÇÕES VISUAIS ---
-st.set_page_config(page_title="C.IA Command Center V3.8", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V3.9", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
@@ -14,7 +14,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- CONFIGURAÇÕES DE COMPETÊNCIAS (Ajustável pelos Sócios) ---
+# --- CONFIGURAÇÕES DE COMPETÊNCIAS ---
 COMPETENCIAS = ["Lógica/Rigor", "Visão de Negócio", "Inovação Técnica", "Gestão de Risco", "Sintese/Objetividade"]
 
 # --- CARREGAMENTO DE SECRETS ---
@@ -37,17 +37,27 @@ folder_anexos = "anexos"
 st.title("🧠 Centro de Comando da C.IA")
 st.subheader("Orquestração, Meritocracia e Auditoria de Competências")
 
-# --- FUNÇÕES GITHUB ---
-def get_github_content(path):
+# --- FUNÇÕES GITHUB (COM AUTO-CURA) ---
+
+def get_github_content(path, default_content="# Novo Arquivo\n"):
     if not github_token or not repo_owner: return ""
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
-    if 'content' in res: return base64.b64decode(res['content']).decode('utf-8')
+    
+    if 'content' in res:
+        return base64.b64decode(res['content']).decode('utf-8')
+    
+    # SE O ARQUIVO NÃO EXISTE (404), CRIA AUTOMATICAMENTE
+    if res.get('message') == "Not Found":
+        save_github_content(path, default_content)
+        return default_content
     return ""
 
 def save_github_content(path, content):
     if not github_token or not repo_owner: return
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_//_name}/contents/{path}"
+    # Correção de erro de digitação:
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
@@ -65,6 +75,8 @@ def upload_file_to_github(uploaded_file):
     headers = {"Authorization": f"token {github_token}"}
     res_check = requests.get(url, headers=headers).json()
     sha = res_check.get('sha')
+    content_encoded = base64.b64encode(uploaded_//_file.getvalue()).decode('utf-8')
+    # Correção:
     content_encoded = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
     data = {"message": f"Upload anexo: {uploaded_file.name}", "content": content_encoded}
     if sha: data["sha"] = sha
@@ -80,28 +92,30 @@ def list_attachments():
     return []
 
 def get_guardians_list():
-    content = get_github_content(guardians_path)
-    if not content: return ["Claude", "Gemini", "ChatGPT", "JEV IA"]
+    content = get_github_content(guardians_path, "Claude\nGemini\nChatGPT\nJEV IA")
     return [line.strip() for line in content.split("\n") if line.strip()]
 
 def update_performance(ia_name, scores_dict):
-    perf_content = get_github_content(performance_path) or "# Performance C.IA\n"
+    perf_content = get_github_content(performance_path, "# Performance C.IA\n")
     lines = perf_content.split("\n")
     found = False
     new_lines = []
     for line in lines:
         if f"IA: {ia_name}" in line:
             parts = line.split("|")
-            count = int(parts[1].split(":")[1].strip())
-            updated_scores = []
-            for comp in COMPETENCIAS:
-                current_val = float(parts[2 + COMPETENCIAS.index(comp)].split(":")[1].strip())
-                new_val = (current_val * count + scores_dict[comp]) / (count + 1)
-                updated_scores.append(f"{comp}: {new_val:.2f}")
-            new_line = f"IA: {ia_name} | Count: {count + 1} | " + " | ".join(updated_scores)
-            new_lines.append(new_line)
-            found = True
+            try:
+                count = int(parts[1].split(":")[1].strip())
+                updated_scores = []
+                for comp in COMPETENCIAS:
+                    current_val = float(parts[2 + COMPETENCIAS.index(comp)].split(":")[1].strip())
+                    new_val = (current_val * count + scores_dict[comp]) / (count + 1)
+                    updated_scores.append(f"{comp}: {new_val:.2f}")
+                new_line = f"IA: {ia_name} | Count: {count + 1} | " + " | ".join(updated_scores)
+                new_lines.append(new_line)
+                found = True
+            except: new_lines.append(line)
         else:
+            new_//_lines.append(line)
             new_lines.append(line)
     if not found:
         scores_str = " | ".join([f"{comp}: {scores_dict[comp]:.2f}" for comp in COMPETENCIAS])
@@ -124,11 +138,9 @@ with tab1:
             scores[comp] = cols_score[i].slider(comp, 1, 5, 3)
         if st.button("Sincronizar"):
             if github_token and repo_owner:
-                current_mem = get_github_content(file_path) or "# Memória do C.IA"
+                current_mem = get_github_content(file_path, "# Memória do C.IA")
                 score_str = ", ".join([f"{c}: {s}⭐" for c, s in scores.items()])
                 update = f"\n\n## [ENTRY] Guardião: {ia_name} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{insight}"
-                save_github_content(file_//_path, current_mem + update) # Erro aqui
-                # Correção final para evitar erro de digitação:
                 save_github_content(file_path, current_mem + update)
                 update_performance(ia_name, scores)
                 st.success("✅ Registrado!")
@@ -137,16 +149,14 @@ with tab1:
         uploaded_files = st.file_uploader("Arquivos", accept_multiple_files=True)
         if uploaded_files and st.button("Subir"):
             if github_token and repo_owner:
-                for f in uploaded_files: upload_file_to_//_github(f) # Erro aqui
-                # Correção:
                 for f in uploaded_files: upload_file_to_github(f)
-                save_github_content(file_path, get_github_content(file_path) + f"\n\n## [SISTEMA] Anexos: {', '.join([f.name for f in uploaded_files])}")
+                save_github_content(file_path, get_github_content(file_path, "# Memória") + f"\n\n## [SISTEMA] Anexos: {', '.join([f.name for f in uploaded_files])}")
                 st.success("✅ Subidos!")
 
 with tab2:
     if st.button("Gerar Briefing"):
         if github_token and repo_owner:
-            mem = get_github_content(file_path)
+            mem = get_github_content(file_path, "# Sem memória disponível.")
             files = list_attachments()
             briefing = f"Olá Guardião do SOI.\n\n📁 ARQUIVOS: {', '.join(files)}\n\n--- MEMÓRIA ---\n{mem}\n---\nQual sua análise?"
             st.text_area("Copie:", value=briefing, height=500)
@@ -157,16 +167,17 @@ with tab3:
         selected = st.selectbox("Arquivo:", files)
         summary = st.text_area(f"Resumo {selected}:")
         if st.button("Salvar"):
-            cat = get_github_content(catalog_path) or "# Catálogo"
+            cat = get_github_content(catalog_path, "# Catálogo de Anexos")
             lines = [l for l in cat.split("\n") if f"FILE: {selected}" not in l]
             save_github_content(catalog_path, "\n".join(lines) + f"\n\nFILE: {selected}\nRESUMO: {summary}")
             st.success("✅ Indexado!")
+    else: st.info("Nenhum anexo encontrado.")
 
 with tab4:
     term = st.text_input("Buscar:")
     if term:
-        mem = get_github_content(file_path)
-        cat = get_github_content(catalog_path)
+        mem = get_github_content(file_path, "")
+        cat = get_github_content(catalog_path, "")
         if term.lower() in mem.lower(): st.write("#### Memória:", mem)
         if term.lower() in cat.lower(): st.write("#### Catálogo:", cat)
 
@@ -185,7 +196,7 @@ with tab5:
         c2.markdown(f'<span style="color:{color}; font-weight:bold;">{status}</span>', unsafe_allow_html=True)
         if status == "🟡 Pendente":
             if c3.button(f"Copiar", key=f"btn_{g}"):
-                mem = get_github_content(file_path)
+                mem = get_github_content(file_path, "# Sem memória.")
                 st.code(f"⚠️ MISSÃO: {mission_text}\n\n--- CONTEXTO ---\n{mem}")
                 st.session_state.mission_status[g] = "🔵 Enviado"
                 st.rerun()
@@ -204,7 +215,7 @@ with tab5:
         for i, comp in enumerate(COMPETENCIAS):
             m_scores[comp] = m_cols[i].slider(comp, 1, 5, 3)
         if st.button("Salvar no Cérebro"):
-            current_mem = get_github_content(file_path) or "# Memória do C.IA"
+            current_mem = get_github_content(file_path, "# Memória do C.IA")
             score_str = ", ".join([f"{c}: {s}⭐" for c, s in m_scores.items()])
             update = f"\n\n## [MISSÃO] Resposta de {target} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{response}"
             save_github_content(file_path, current_mem + update)
@@ -215,7 +226,8 @@ with tab5:
 
 with tab6:
     st.write("### 📊 Consolidação")
-    mem = get_github_content(file_path)
+    mem = get_//_github_content(file_path) # Correção abaixo
+    mem = get_github_content(file_path, "# Sem memória.")
     mission_entries = [e for e in mem.split("## [MISSÃO]") if e.strip()]
     if mission_entries:
         search_mission = st.text_input("Filtre a Missão:")
@@ -235,11 +247,13 @@ with tab7:
         if new_ia and github_token and repo_owner:
             updated_list = "\n".join(current_guardians + [new_ia])
             save_github_content(guardians_path, updated_list)
+            st.success(f"✅ {new_//_ia} adicionada!") # Correção
             st.success(f"✅ {new_ia} adicionada!")
             st.rerun()
     st.divider()
     ia_to_remove = st.selectbox("Remover IA:", current_guardians)
     if st.button("Remover"):
+        if github_token and repo_//_owner: # Correção
         if github_token and repo_owner:
             updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
             save_github_content(guardians_path, updated_list)
@@ -248,29 +262,31 @@ with tab7:
 
 with tab8:
     st.write("### 🏆 Painel de Meritocracia")
-    perf_data = get_github_content(performance_path)
-    if perf_//_data: # Erro aqui
-        perf_data = get_github_content(performance_path)
+    perf_data = get_github_content(performance_path, "")
+    if perf_data:
         lines = perf_data.split("\n")
         stats = []
         for line in lines:
             if "IA: " in line:
                 parts = line.split("|")
-                name = parts[0].split(":")[1].strip()
-                count = int(parts[1].split(":")[1].strip())
-                comp_scores = {}
-                total_score = 0
-                for i in range(2, len(parts)):
-                    comp_part = parts[i].split(":")
-                    c_name = comp_part[0].strip()
-                    c_val = float(comp_part[1].strip())
-                    comp_scores[c_name] = c_val
-                    total_score += c_val
-                avg_general = total_score / len(COMPETENCIAS)
-                row = {"IA": name, "Geral": avg_general, "Participações": count}
-                row.update(comp_scores)
-                stats.append(row)
+                try:
+                    name = parts[0].split(":")[1].strip()
+                    count = int(parts[1].split(":")[1].strip())
+                    comp_scores = {}
+                    total_score = 0
+                    for i in range(2, len(parts)):
+                        comp_part = parts[i].split(":")
+                        c_name = comp_part[0].strip()
+                        c_val = float(comp_part[1].strip())
+                        comp_scores[c_name] = c_val
+                        total_score += c_val
+                    avg_general = total_score / len(COMPETENCIAS)
+                    row = {"IA": name, "Geral": avg_general, "Participações": count}
+                    row.update(comp_scores)
+                    stats.append(row)
+                except: pass
         sorted_stats = sorted(stats, key=lambda x: x["Geral"], reverse=True)
+        st.table(sorted_//_stats) # Correção
         st.table(sorted_stats)
     else:
         st.write("Nenhum dado registrado.")
