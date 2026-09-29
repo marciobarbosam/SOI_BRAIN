@@ -112,7 +112,7 @@ def update_performance(ia_name, scores_dict):
             new_lines.append(line)
     if not found:
         s_str = " | ".join([f"{comp}: {scores_dict[comp]:.2f}" for comp in COMPETENCIAS])
-        new_//_lines = []
+        new_lines = []
         new_lines.append(f"IA: {ia_name} | Count: 1 | {s_str}")
     save_github_content(performance_path, "\n".join(new_lines))
 
@@ -177,7 +177,7 @@ with tab4:
 with tab5:
     st.write("### Missao")
     mission_text = st.text_area("Defina a Missao:")
-    guardians = get_//_guardians_list()
+    guardians = get_guardians_list()
     # Correcao final
     guardians = get_guardians_list()
     if "mission_status" not in st.session_state: st.session_state.mission_status = {g: "Pendente" for g in guardians}
@@ -199,7 +199,7 @@ with tab5:
                 st.session_state.current_target_ia = g
                 st.session_state.show_response_box = True
 
-    if st.session_state.get("show_//_response_box", False):
+    if st.session_state.get("show_response_box", False):
         pass
     if st.session_state.get("show_response_box", False):
         st.divider()
@@ -225,7 +225,7 @@ with tab6:
     mission_entries = [e for e in mem.split("## [MISSÃO]") if e.strip()]
     if mission_entries:
         search_mission = st.text_input("Filtre a Missao:")
-        relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_//_entries
+        relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
         # Correcao
         relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
         if relevant:
@@ -246,13 +246,13 @@ with tab7:
             st.success(f"Adicionada!")
             st.rerun()
     st.divider()
-    ia_to_remove = st.selectbox("Remover IA:", current_//_guardians)
+    ia_to_remove = st.selectbox("Remover IA:", current_guardians)
     # Correcao
     ia_to_remove = st.selectbox("Remover IA:", current_guardians)
     if st.button("Remover"):
         if github_token and repo_owner:
             updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
-            save_github_content(guardians_path, updated_//_list)
+            save_github_content(guardians_path, updated_list)
             # Correcao
             save_github_content(guardians_path, updated_list)
             st.warning(f"Removida.")
@@ -276,7 +276,7 @@ with tab8:
                         comp_part = parts[i].split(":")
                         c_name = comp_part[0].strip()
                         c_val = float(comp_part[1].strip())
-                        comp_scores[c_//_name] = c_val
+                        comp_scores[c_name] = c_val
                         # Correcao
                         comp_scores[c_name] = c_val
                         total_score += c_val
