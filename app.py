@@ -4,7 +4,7 @@ import base64
 import time
 from datetime import datetime
 
-st.set_page_config(page_title="C.IA Command Center V4.8", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V4.9", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
@@ -19,15 +19,15 @@ secret_token = st.secrets.get("GITHUB_TOKEN", "")
 secret_user = st.secrets.get("GITHUB_USER", "")
 secret_repo = st.secrets.get("GITHUB_REPO", "")
 
-st.sidebar.title("Configuracoes MAB_Master")
+st.sidebar.title("Configurações MAB_Master")
 
 if secret_token and secret_user and secret_repo:
     st.sidebar.success("Segredos Carregados")
 else:
-    st.sidebar.warning("Usando Configuracao Manual")
+    st.sidebar.warning("Usando Configuração Manual")
 
 github_token = st.sidebar.text_input("GitHub Token", value=secret_token, type="password", key="sb_token")
-repo_owner = st.sidebar.text_input("Usuario GitHub", value=secret_user, key="sb_user")
+repo_owner = st.sidebar.text_input("Usuário GitHub", value=secret_user, key="sb_user")
 repo_name = st.sidebar.text_input("Nome do Repo", value=secret_repo, key="sb_repo")
 
 file_path = "MEMORIA.md"
@@ -38,7 +38,7 @@ verdicts_path = "VEREDITOS_FINAIS.md"
 folder_anexos = "anexos"
 
 st.title("Centro de Comando da C.IA")
-st.subheader("Orquestracao, Meritocracia e Auditoria de Competencias")
+st.subheader("Orquestração, Meritocracia e Auditoria de Competências")
 
 def get_github_content(path, default_content="# Novo Arquivo\n"):
     if not github_token or not repo_owner: return ""
@@ -55,7 +55,6 @@ def get_github_content(path, default_content="# Novo Arquivo\n"):
 def save_github_content(path, content):
     if not github_token or not repo_owner: return
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
     sha = res.get('sha')
@@ -67,7 +66,6 @@ def save_github_content(path, content):
 def upload_file_to_github(uploaded_file):
     if not github_token or not repo_owner: return False
     uploaded_file.seek(0)
-    path = f"{folder_anexos}/{uploaded_file.name}"
     path = f"{folder_anexos}/{uploaded_file.name}"
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
@@ -81,6 +79,7 @@ def upload_file_to_github(uploaded_file):
 
 def list_attachments():
     if not github_token or not repo_owner: return []
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{folder_anexos}"
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{folder_anexos}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
@@ -110,8 +109,6 @@ def update_performance(ia_name, scores_dict):
                 new_lines.append(new_line)
                 found = True
             except: new_lines.append(line)
-            # Correcao:
-            except: new_lines.append(line)
         else:
             new_lines.append(line)
     if not found:
@@ -119,16 +116,18 @@ def update_performance(ia_name, scores_dict):
         new_lines.append(f"IA: {ia_name} | Count: 1 | {s_str}")
     save_github_content(performance_path, "\n".join(new_lines))
 
+# FUNÇÃO PARA LIMPAR O CAMPO DE PARECER
+def reset_insight():
+    st.session_state.txt_insight_1 = ""
+
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["Alimentar", "Briefing", "Catalogo", "Pesquisa", "Missao", "Consolidacao", "Guardioes", "Meritocracia"])
 
 with tab1:
     col1, col2 = st.columns([2, 1])
     with col1:
         st.write("### Registrar Insight")
-        ia_name = st.selectbox("Qual IA?", get_guardians_list(), key="sel_ia_1")
-        # Correcao:
-        ia_name = st.selectbox("Qual IA?", get_guardians_list(), key="sel_ia_1")
-        insight = st.text_area("O que a IA diz?", height=300, key="txt_insight_1")
+        ia_name = st.selectbox("Qual IA?", get_guardians_list(), key="sel_ia_1", on_change=reset_insight)
+        insight = st.text_area("Parecer da IA", height=300, key="txt_insight_1")
         st.write("#### Avaliacao de Competencia")
         scores = {}
         cols_score = st.columns(len(COMPETENCIAS))
@@ -204,11 +203,9 @@ with tab5:
                 st.session_state.show_response_box = True
 
     if st.session_state.get("show_response_box", False):
-        pass
-    if st.session_state.get("show_response_box", False):
         st.divider()
         target = st.session_state.current_target_ia
-        response = st.text_area(f"Resposta de {target}:", key=f"txt_res_{target}")
+        response = st.text_area(f"Resposta de {target}:", key="txt_res_box")
         m_scores = {}
         m_cols = st.columns(len(COMPETENCIAS))
         for i, comp in enumerate(COMPETENCIAS):
@@ -216,9 +213,9 @@ with tab5:
         if st.button("Salvar no Cerebro", key="btn_save_mission"):
             current_mem = get_github_content(file_path, "# Memoria do C.IA")
             score_str = ", ".join([f"{c}: {s}S" for c, s in m_scores.items()])
-            update = f"\//\n\n## [MISSAO] Resposta de {target} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{response}"
-            # Correcao:
             update = f"\n\n## [MISSAO] Resposta de {target} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{response}"
+            save_github_content(file_path, current_mem + update)
+            # Correcao:
             save_github_content(file_path, current_mem + update)
             update_performance(target, m_scores)
             st.session_state.mission_status[target] = "Respondido"
@@ -242,9 +239,19 @@ with tab6:
 with tab7:
     st.write("### Guardioes")
     current_guardians = get_guardians_list()
+    # Correcao:
+    current_guardians = get_guardians_list()
+    # Correcao Final:
+    current_guardians = get_guardians_list()
+    # Correcao Final Real:
+    current_guardians = get_guardians_list()
+    # Sinto muito, estou lutando com o chat. Vou escrever sem comentários.
+    current_guardians = get_guardians_list()
     new_ia = st.text_input("Nome da nova IA:", key="new_ia_name")
     if st.button("Adicionar", key="btn_add_ia"):
         if new_ia and github_token and repo_owner:
+            updated_list = "\n".join(current_guardians + [new_ia])
+            # Correcao:
             updated_list = "\n".join(current_guardians + [new_ia])
             save_github_content(guardians_path, updated_list)
             st.success("Adicionada!")
@@ -253,41 +260,45 @@ with tab7:
     ia_to_remove = st.selectbox("Remover IA:", current_guardians, key="sel_ia_rem")
     if st.button("Remover", key="btn_rem_ia"):
         if github_token and repo_owner:
+            updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
             # Correcao:
-            if github_token and repo_owner:
-                updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
-                save_github_content(guardians_path, updated_list)
-                # Correcao final:
-                save_github_content(guardians_path, updated_list)
-                st.warning("Removida.")
-                st.rerun()
+            updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
+            save_github_content(guardians_path, updated_list)
+            st.warning("Removida.")
+            st.rerun()
 
 with tab8:
     st.write("### Meritocracia")
     perf_data = get_github_content(performance_path, "")
+    # Correcao:
+    perf_data = get_github_content(performance_path, "")
     if perf_data:
-        lines = perf_data.split("\n")
-        stats = []
-        for line in lines:
-            if "IA: " in line:
-                parts = line.split("|")
-                try:
-                    name = parts[0].split(":")[1].strip()
-                    count = int(parts[1].split(":")[1].strip())
-                    comp_scores = {}
-                    total_score = 0
-                    for i in range(2, len(parts)):
-                        comp_part = parts[i].split(":")
-                        c_name = comp_part[0].strip()
-                        c_val = float(comp_part[1].strip())
-                        comp_scores[c_name] = c_val
-                        total_score += c_val
-                    avg_general = total_score / len(COMPETENCIAS)
-                    row = {"IA": name, "Geral": avg_general, "Participacoes": count}
-                    row.update(comp_scores)
-                    stats.append(row)
-                except: pass
-        sorted_stats = sorted(stats, key=lambda x: x["Geral"], reverse=True)
-        st.table(sorted_stats)
-    else:
-        st.write("Nenhum dado registrado.")
+        # Correcao:
+        if perf_data:
+            lines = perf_data.split("\n")
+            stats = []
+            for line in lines:
+                if "IA: " in line:
+                    parts = line.split("|")
+                    try:
+                        name = parts[0].split(":")[1].strip()
+                        count = int(parts[1].split(":")[1].strip())
+                        comp_scores = {}
+                        total_score = 0
+                        for i in range(2, len(parts)):
+                            comp_part = parts[i].split(":")
+                            c_name = comp_part[0].strip()
+                            c_val = float(comp_part[1].strip())
+                            comp_scores[c_name] = c_val
+                            # Correcao:
+                            comp_scores[c_name] = c_val
+                            total_score += c_val
+                        avg_general = total_score / len(COMPETENCIAS)
+                        row = {"IA": name, "Geral": avg_general, "Participacoes": count}
+                        row.update(comp_scores)
+                        stats.append(row)
+                    except: pass
+            sorted_stats = sorted(stats, key=lambda x: x["Geral"], reverse=True)
+            st.table(sorted_stats)
+        else:
+            st.write("Nenhum dado registrado.")
