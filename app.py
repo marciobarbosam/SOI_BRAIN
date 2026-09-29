@@ -72,8 +72,6 @@ def upload_file_to_github(uploaded_file):
     res_check = requests.get(url, headers=headers).json()
     sha = res_check.get('sha')
     content_encoded = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
-    data = {"message": f"Upload: {uploaded_//_file.name}", "content": content_encoded}
-    # CORRECAO:
     data = {"message": f"Upload: {uploaded_file.name}", "content": content_encoded}
     if sha: data["sha"] = sha
     response = requests.put(url, headers=headers, json=data)
@@ -100,13 +98,13 @@ def update_performance(ia_name, scores_dict):
         if f"IA: {ia_name}" in line:
             parts = line.split("|")
             try:
-                count_val = int(parts[1].split(":")[1].strip())
+                count = int(parts[1].split(":")[1].strip())
                 up_scores = []
                 for comp in COMPETENCIAS:
                     current_val = float(parts[2 + COMPETENCIAS.index(comp)].split(":")[1].strip())
-                    new_val = (current_val * count_val + scores_dict[comp]) / (count_val + 1)
+                    new_val = (current_val * count + scores_dict[comp]) / (count + 1)
                     up_scores.append(f"{comp}: {new_val:.2f}")
-                new_line = f"IA: {ia_name} | Count: {count_val + 1} | " + " | ".join(up_scores)
+                new_line = f"IA: {ia_name} | Count: {count + 1} | " + " | ".join(up_scores)
                 new_lines.append(new_line)
                 found = True
             except: new_lines.append(line)
@@ -114,6 +112,7 @@ def update_performance(ia_name, scores_dict):
             new_lines.append(line)
     if not found:
         s_str = " | ".join([f"{comp}: {scores_dict[comp]:.2f}" for comp in COMPETENCIAS])
+        new_//_lines = []
         new_lines.append(f"IA: {ia_name} | Count: 1 | {s_str}")
     save_github_content(performance_path, "\n".join(new_lines))
 
@@ -135,8 +134,6 @@ with tab1:
                 current_mem = get_github_content(file_path, "# Memoria do C.IA")
                 score_str = ", ".join([f"{c}: {s}S" for c, s in scores.items()])
                 update = f"\n\n## [ENTRY] Guardiao: {ia_name} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{insight}"
-                save_github_content(file_path, current_//_mem + update)
-                # CORRECAO:
                 save_github_content(file_path, current_mem + update)
                 update_performance(ia_name, scores)
                 st.success("Registrado!")
@@ -180,6 +177,8 @@ with tab4:
 with tab5:
     st.write("### Missao")
     mission_text = st.text_area("Defina a Missao:")
+    guardians = get_//_guardians_list()
+    # Correcao final
     guardians = get_guardians_list()
     if "mission_status" not in st.session_state: st.session_state.mission_status = {g: "Pendente" for g in guardians}
     cols = st.columns([3, 2, 2])
@@ -198,10 +197,10 @@ with tab5:
         elif status == "Enviado":
             if c3.button(f"Registrar", key=f"res_{g}"):
                 st.session_state.current_target_ia = g
-                st.session_state.show_//_response_box = True
-                # CORRECAO:
                 st.session_state.show_response_box = True
 
+    if st.session_state.get("show_//_response_box", False):
+        pass
     if st.session_state.get("show_response_box", False):
         st.divider()
         target = st.session_state.current_target_ia
@@ -226,6 +225,8 @@ with tab6:
     mission_entries = [e for e in mem.split("## [MISSÃO]") if e.strip()]
     if mission_entries:
         search_mission = st.text_input("Filtre a Missao:")
+        relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_//_entries
+        # Correcao
         relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
         if relevant:
             combined = ""
@@ -240,19 +241,19 @@ with tab7:
     new_ia = st.text_input("Nome da nova IA:")
     if st.button("Adicionar"):
         if new_ia and github_token and repo_owner:
-            updated_list = "\n".join(current_guardians + [new_//_ia])
-            # CORRECAO:
             updated_list = "\n".join(current_guardians + [new_ia])
             save_github_content(guardians_path, updated_list)
             st.success(f"Adicionada!")
             st.rerun()
     st.divider()
     ia_to_remove = st.selectbox("Remover IA:", current_//_guardians)
-    # CORRECAO:
+    # Correcao
     ia_to_remove = st.selectbox("Remover IA:", current_guardians)
     if st.button("Remover"):
         if github_token and repo_owner:
             updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
+            save_github_content(guardians_path, updated_//_list)
+            # Correcao
             save_github_content(guardians_path, updated_list)
             st.warning(f"Removida.")
             st.rerun()
@@ -275,6 +276,8 @@ with tab8:
                         comp_part = parts[i].split(":")
                         c_name = comp_part[0].strip()
                         c_val = float(comp_part[1].strip())
+                        comp_scores[c_//_name] = c_val
+                        # Correcao
                         comp_scores[c_name] = c_val
                         total_score += c_val
                     avg_general = total_score / len(COMPETENCIAS)
