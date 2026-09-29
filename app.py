@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 # --- CONFIGURAÇÕES VISUAIS ---
-st.set_page_config(page_title="C.IA Command Center V2.6", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V2.7", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
@@ -54,32 +54,36 @@ def save_github_content(path, content):
     requests.put(url, headers=headers, json=data)
 
 def upload_file_to_github(uploaded_file):
-    if not github_token or not repo_owner: return False
+    if not github_token or not repo_owner: return False, "Faltam configurações"
     
-    # 1. Reset do buffer
     uploaded_file.seek(0)
-    
     path = f"{folder_anexos}/{uploaded_file.name}"
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     
-    # 2. Verifica se já existe para pegar o SHA
+    # 1. Verifica se já existe para pegar o SHA
     res_check = requests.get(url, headers=headers).json()
     sha = res_check.get('sha')
     
-    # 3. Encode e Envio
+    # 2. Encode e Envio
     content_encoded = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
     data = {"message": f"Upload anexo: {uploaded_file.name}", "content": content_encoded}
     if sha: data["sha"] = sha
     
     response = requests.put(url, headers=headers, json=data)
     
-    # --- PROVA DE VIDA (Verificação Real) ---
-    # Tenta ler o arquivo de volta imediatamente para confirmar que ele existe no servidor
+    # Se o upload falhou aqui, já retorna o erro do GitHub
+    if response.status_code not in [200, 201]:
+        return False, f"Erro no Upload: {response.status_code} - {response.text}"
+
+    # --- PROVA DE VIDA COM ESPERA (Delay) ---
+    time.sleep(3) # Espera 3 segundos para o GitHub indexar
+    
     verify_res = requests.get(url, headers=headers).json()
     if 'content' in verify_res:
-        return True # O arquivo realmente existe no GitHub
-    return False
+        return True, "Sucesso"
+    
+    return False, f"O upload disse OK, mas o arquivo sumiu na verificação. Resposta: {verify_res}"
 
 def list_attachments():
     if not github_token or not repo_owner: return []
@@ -111,21 +115,20 @@ with tab1:
 
     with col2:
         st.write("### 📁 Upload de Anexo Único")
-        # MUDANÇA: accept_multiple_files=False para máxima segurança
         uploaded_file = st.file_uploader("Escolha UM arquivo", type=["pdf", "docx", "txt", "png", "jpg"], accept_multiple_files=False)
         
         if uploaded_file is not None:
             if st.button("Subir Arquivo Agora"):
                 if github_token and repo_owner:
-                    with st.spinner("Enviando e verificando no GitHub..."):
-                        if upload_file_to_github(uploaded_file):
-                            # Log na memória
+                    with st.spinner("Enviando e verificando..."):
+                        success, message = upload_file_to_github(uploaded_file)
+                        if success:
                             current_mem = get_github_content(file_path) or "# Memória do C.IA"
                             date_str = datetime.now().strftime("%d/%m/%Y %H:%M")
                             save_github_content(file_path, current_mem + f"\n\n## [SISTEMA] Anexo Adicionado: {uploaded_file.name} | Data: {date_str}")
                             st.success(f"✅ Confirmado! {uploaded_file.name} está no GitHub.")
                         else:
-                            st.error("❌ Erro Crítico: O GitHub não confirmou a existência do arquivo.")
+                            st.error(f"❌ {message}")
                 else: st.error("Preencha as configurações na barra lateral!")
 
 with tab2:
