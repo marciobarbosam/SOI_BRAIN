@@ -4,7 +4,7 @@ import base64
 import time
 from datetime import datetime
 
-st.set_page_config(page_title="C.IA Command Center V4.7", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V4.8", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
@@ -19,15 +19,15 @@ secret_token = st.secrets.get("GITHUB_TOKEN", "")
 secret_user = st.secrets.get("GITHUB_USER", "")
 secret_repo = st.secrets.get("GITHUB_REPO", "")
 
-st.sidebar.title("Configurações MAB_Master")
+st.sidebar.title("Configuracoes MAB_Master")
 
 if secret_token and secret_user and secret_repo:
     st.sidebar.success("Segredos Carregados")
 else:
-    st.sidebar.warning("Usando Configuração Manual")
+    st.sidebar.warning("Usando Configuracao Manual")
 
 github_token = st.sidebar.text_input("GitHub Token", value=secret_token, type="password", key="sb_token")
-repo_owner = st.sidebar.text_input("Usuário GitHub", value=secret_user, key="sb_user")
+repo_owner = st.sidebar.text_input("Usuario GitHub", value=secret_user, key="sb_user")
 repo_name = st.sidebar.text_input("Nome do Repo", value=secret_repo, key="sb_repo")
 
 file_path = "MEMORIA.md"
@@ -38,7 +38,7 @@ verdicts_path = "VEREDITOS_FINAIS.md"
 folder_anexos = "anexos"
 
 st.title("Centro de Comando da C.IA")
-st.subheader("Orquestração, Meritocracia e Auditoria de Competências")
+st.subheader("Orquestracao, Meritocracia e Auditoria de Competencias")
 
 def get_github_content(path, default_content="# Novo Arquivo\n"):
     if not github_token or not repo_owner: return ""
@@ -55,7 +55,6 @@ def get_github_content(path, default_content="# Novo Arquivo\n"):
 def save_github_content(path, content):
     if not github_token or not repo_owner: return
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
-    # Correcao:
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
@@ -68,6 +67,7 @@ def save_github_content(path, content):
 def upload_file_to_github(uploaded_file):
     if not github_token or not repo_owner: return False
     uploaded_file.seek(0)
+    path = f"{folder_anexos}/{uploaded_file.name}"
     path = f"{folder_anexos}/{uploaded_file.name}"
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
@@ -108,9 +108,9 @@ def update_performance(ia_name, scores_dict):
                     up_scores.append(f"{comp}: {new_val:.2f}")
                 new_line = f"IA: {ia_name} | Count: {count + 1} | " + " | ".join(up_scores)
                 new_lines.append(new_line)
-                # Correcao:
-                new_lines.append(new_line)
                 found = True
+            except: new_lines.append(line)
+            # Correcao:
             except: new_lines.append(line)
         else:
             new_lines.append(line)
@@ -128,16 +128,14 @@ with tab1:
         ia_name = st.selectbox("Qual IA?", get_guardians_list(), key="sel_ia_1")
         # Correcao:
         ia_name = st.selectbox("Qual IA?", get_guardians_list(), key="sel_ia_1")
-        insight = st.text_area("O que a IA diz?", height=300, key="text_insight_1")
+        insight = st.text_area("O que a IA diz?", height=300, key="txt_insight_1")
         st.write("#### Avaliacao de Competencia")
         scores = {}
         cols_score = st.columns(len(COMPETENCIAS))
         for i, comp in enumerate(COMPETENCIAS):
-            scores[comp] = cols_score[i].slider(comp, 1, 5, 3, key=f"sc_{comp}_1")
+            scores[comp] = cols_score[i].slider(comp, 1, 5, 3, key=f"sl_{comp}_1")
         if st.button("Sincronizar", key="btn_sync_1"):
             if github_token and repo_owner:
-                current_mem = get_github_content(file_path, "# Memoria do C.IA")
-                # Correcao:
                 current_mem = get_github_content(file_path, "# Memoria do C.IA")
                 score_str = ", ".join([f"{c}: {s}S" for c, s in scores.items()])
                 update = f"\n\n## [ENTRY] Guardiao: {ia_name} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{insight}"
@@ -159,13 +157,13 @@ with tab2:
             mem = get_github_content(file_path, "# Sem memoria")
             files = list_attachments()
             briefing = f"Ola Guardiao do SOI.\n\nARQUIVOS: {', '.join(files)}\n\n--- MEMORIA ---\n{mem}\n---\nQual sua analise?"
-            st.text_area("Copie:", value=briefing, height=500, key="text_brief_copy")
+            st.text_area("Copie:", value=briefing, height=500, key="txt_briefing")
 
 with tab3:
     files = list_attachments()
     if files:
         selected = st.selectbox("Arquivo:", files, key="sel_file_cat")
-        summary = st.text_area("Resumo do arquivo:", key="text_sum_cat")
+        summary = st.text_area("Resumo do arquivo:", key="txt_sum_cat")
         if st.button("Salvar", key="btn_save_cat"):
             cat = get_github_content(catalog_path, "# Catalogo")
             lines = [l for l in cat.split("\n") if f"FILE: {selected}" not in l]
@@ -174,7 +172,7 @@ with tab3:
     else: st.info("Nenhum anexo.")
 
 with tab4:
-    term = st.text_input("Buscar:", key="search_term_main")
+    term = st.text_input("Buscar:", key="search_term")
     if term:
         mem = get_github_content(file_path, "")
         cat = get_github_content(catalog_path, "")
@@ -183,7 +181,7 @@ with tab4:
 
 with tab5:
     st.write("### Missao")
-    mission_text = st.text_area("Defina a Missao:", key="text_mission_def")
+    mission_text = st.text_area("Defina a Missao:", key="txt_mission")
     guardians = get_guardians_list()
     if "mission_status" not in st.session_state: st.session_state.mission_status = {g: "Pendente" for g in guardians}
     cols = st.columns([3, 2, 2])
@@ -206,6 +204,8 @@ with tab5:
                 st.session_state.show_response_box = True
 
     if st.session_state.get("show_response_box", False):
+        pass
+    if st.session_state.get("show_response_box", False):
         st.divider()
         target = st.session_state.current_target_ia
         response = st.text_area(f"Resposta de {target}:", key=f"txt_res_{target}")
@@ -216,6 +216,8 @@ with tab5:
         if st.button("Salvar no Cerebro", key="btn_save_mission"):
             current_mem = get_github_content(file_path, "# Memoria do C.IA")
             score_str = ", ".join([f"{c}: {s}S" for c, s in m_scores.items()])
+            update = f"\//\n\n## [MISSAO] Resposta de {target} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{response}"
+            # Correcao:
             update = f"\n\n## [MISSAO] Resposta de {target} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{response}"
             save_github_content(file_path, current_mem + update)
             update_performance(target, m_scores)
@@ -244,10 +246,6 @@ with tab7:
     if st.button("Adicionar", key="btn_add_ia"):
         if new_ia and github_token and repo_owner:
             updated_list = "\n".join(current_guardians + [new_ia])
-            # Correcao:
-            updated_list = "\n".join(current_guardians + [new_ia])
-            # Correcao Final:
-            updated_list = "\n".join(current_guardians + [new_ia])
             save_github_content(guardians_path, updated_list)
             st.success("Adicionada!")
             st.rerun()
@@ -255,12 +253,14 @@ with tab7:
     ia_to_remove = st.selectbox("Remover IA:", current_guardians, key="sel_ia_rem")
     if st.button("Remover", key="btn_rem_ia"):
         if github_token and repo_owner:
-            updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
             # Correcao:
-            updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
-            save_github_content(guardians_path, updated_list)
-            st.warning("Removida.")
-            st.rerun()
+            if github_token and repo_owner:
+                updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
+                save_github_content(guardians_path, updated_list)
+                # Correcao final:
+                save_github_content(guardians_path, updated_list)
+                st.warning("Removida.")
+                st.rerun()
 
 with tab8:
     st.write("### Meritocracia")
