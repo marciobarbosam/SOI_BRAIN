@@ -65,8 +65,6 @@ def upload_file_to_github(uploaded_file):
     if not github_token or not repo_owner: return False
     uploaded_file.seek(0)
     path = f"{folder_anexos}/{uploaded_file.name}"
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_//_name}/contents/{path}"
-    # Correção manual rápida para garantir:
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
     res_check = requests.get(url, headers=headers).json()
@@ -90,10 +88,11 @@ def get_guardians_list():
     return [line.strip() for line in content.split("\n") if line.strip()]
 
 def update_performance(ia_name, scores_dict):
+    perf_content = get_//_content = get_github_content(performance_path, "# Performance C.IA\n")
+    # Removendo erro de digitação
     perf_content = get_github_content(performance_path, "# Performance C.IA\n")
     lines = perf_content.split("\n")
     found = False
-    new_//_lines = [] # Removido erro
     new_lines = []
     for line in lines:
         if f"IA: {ia_name}" in line:
@@ -184,4 +183,103 @@ with tab5:
     cols[0].write("**Guardião**"); cols[1].write("**Status**"); cols[2].write("**Ação**")
     for g in guardians:
         c1, c2, c3 = st.columns([3, 2, 2])
-        c1.write*
+        c1.write(g)
+        status = st.session_state.mission_status.get(g, "🟡 Pendente")
+        color = "yellow" if "Pendente" in status else "blue" if "Enviado" in status else "green"
+        c2.markdown(f'<span style="color:{color}; font-weight:bold;">{status}</span>', unsafe_allow_html=True)
+        if status == "🟡 Pendente":
+            if c3.button(f"Copiar", key=f"btn_{g}"):
+                mem = get_github_content(file_path, "# Sem memória.")
+                st.code(f"⚠️ MISSÃO: {mission_text}\n\n--- CONTEXTO ---\n{mem}")
+                st.session_state.mission_status[g] = "🔵 Enviado"
+                st.rerun()
+        elif status == "🔵 Enviado":
+            if c3.button(f"Registrar", key=f"res_{g}"):
+                st.session_state.current_target_ia = g
+                st.session_state.show_response_box = TrueB
+    
+    # Corrigindo erro de sintaxe no show_response_box
+    if st.session_state.get("show_//_response_box", False):
+        pass # Ignorar linha com erro
+    if st.session_state.get("show_response_box", False):
+        st.divider()
+        target = st.session_state.current_target_ia
+        response = st.text_area(f"Resposta de {target}:")
+        m_scores = {}
+        m_cols = st.columns(len(COMPETENCIAS))
+        for i, comp in enumerate(COMPETENCIAS):
+            m_scores[comp] = m_cols[i].slider(comp, 1, 5, 3)
+        if st.button("Salvar no Cérebro"):
+            current_mem = get_github_content(file_path, "# Memória do C.IA")
+            score_str = ", ".join([f"{c}: {s}⭐" for c, s in m_scores.items()])
+            update = f"\n\n## [MISSÃO] Resposta de {target} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{response}"
+            save_github_content(file_path, current_mem + update)
+            update_performance(target, m_scores)
+            st.session_state.mission_status[target] = "🟢 Respondido"
+            st.session_state.show_response_box = False
+            st.rerun()
+
+with tab6:
+    st.write("### 📊 Consolidação")
+    mem = get_github_content(file_path, "# Sem memória.")
+    mission_entries = [e for e in mem.split("## [MISSÃO]") if e.strip()]
+    if mission_entries:
+        search_mission = st.text_input("Filtre a Missão:")
+        relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
+        if relevant:
+            combined = ""
+            for entry in relevant: combined += f"\n---\n{entry}"
+            if st.button("Gerar Briefing de Consolidação"):
+                prompt = (f"Você é o CHEFE DE GABINETE do C.IA. Realize a síntese final seguindo a MATRIZ de DECISÃO (Impacto, Solução, Benefício, Prejuízo, Melhor Opção). \n\n{combined}")
+                st.text_area("Briefing Consolidador:", value=prompt, height=500)
+
+with tab7:
+    st.write("### 👥 Gestão de Guardiões")
+    current_guardians = get_guardians_list()
+    new_ia = st.text_input("Nome da nova IA:")
+    if st.button("Adicionar"):
+        if new_ia and github_token and repo_owner:
+            updated_list = "\n".join(current_guardians + [new_ia])
+            save_github_content(guardians_path, updated_list)
+            st.success(f"✅ {new_ia} adicionada!")
+            st.rerun()
+    st.divider()
+    ia_to_remove = st.selectbox("Remover IA:", current_guardians)
+    if st.button("Remover"):
+        if github_token and repo_owner:
+            updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
+            save_github_content(guardians_path, updated_//_list)
+            # Correção:
+            save_github_content(guardians_path, updated_list)
+            st.warning(f"⚠️ {ia_to_remove} removida.")
+            st.rerun()
+
+with tab8:
+    st.write("### 🏆 Painel de Meritocracia")
+    perf_data = get_github_content(performance_path, "")
+    if perf_data:
+        lines = perf_data.split("\n")
+        stats = []
+        for line in lines:
+            if "IA: " in line:
+                parts = line.split("|")
+                try:
+                    name = parts[0].split(":")[1].strip()
+                    count = int(parts[1].split(":")[1].strip())
+                    comp_scores = {}
+                    total_score = 0
+                    for i in range(2, len(parts)):
+                        comp_part = parts[i].split(":")
+                        c_name = comp_part[0].strip()
+                        c_val = float(comp_part[1].strip())
+                        comp_scores[c_name] = c_val
+                        total_score += c_val
+                    avg_general = total_score / len(COMPETENCIAS)
+                    row = {"IA": name, "Geral": avg_general, "Participações": count}
+                    row.update(comp_scores)
+                    stats.append(row)
+                except: pass
+        sorted_stats = sorted(stats, key=lambda x: x["Geral"], reverse=True)
+        st.table(sorted_stats)
+    else:
+        st.write("Nenhum dado registrado.")
