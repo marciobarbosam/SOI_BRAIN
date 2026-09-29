@@ -4,3 +4,4 @@ ChatGPT
 JEV IA
 Grok
 Dola
+Perplexity
