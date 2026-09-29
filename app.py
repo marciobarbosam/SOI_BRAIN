@@ -4,7 +4,6 @@ import base64
 import time
 from datetime import datetime
 
-# --- CONFIGURAÇÕES VISUAIS ---
 st.set_page_config(page_title="C.IA Command Center V3.9", page_icon="🧠", layout="wide")
 
 st.markdown("""
@@ -14,10 +13,8 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- CONFIGURAÇÕES DE COMPETÊNCIAS ---
 COMPETENCIAS = ["Lógica/Rigor", "Visão de Negócio", "Inovação Técnica", "Gestão de Risco", "Sintese/Objetividade"]
 
-# --- CARREGAMENTO DE SECRETS ---
 secret_token = st.secrets.get("GITHUB_TOKEN", "")
 secret_user = st.secrets.get("GITHUB_USER", "")
 secret_repo = st.secrets.get("GITHUB_REPO", "")
@@ -37,7 +34,6 @@ folder_anexos = "anexos"
 st.title("🧠 Centro de Comando da C.IA")
 st.subheader("Orquestração, Meritocracia e Auditoria de Competências")
 
-# --- FUNÇÕES GITHUB ---
 def get_github_content(path, default_content="# Novo Arquivo\n"):
     if not github_token or not repo_owner: return ""
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
@@ -88,8 +84,6 @@ def get_guardians_list():
     return [line.strip() for line in content.split("\n") if line.strip()]
 
 def update_performance(ia_name, scores_dict):
-    perf_content = get_//_content = get_github_content(performance_path, "# Performance C.IA\n")
-    # Removendo erro de digitação
     perf_content = get_github_content(performance_path, "# Performance C.IA\n")
     lines = perf_content.split("\n")
     found = False
@@ -113,16 +107,17 @@ def update_performance(ia_name, scores_dict):
     if not found:
         scores_str = " | ".join([f"{comp}: {scores_dict[comp]:.2f}" for comp in COMPETENCIAS])
         new_lines.append(f"IA: {ia_name} | Count: 1 | {scores_str}")
+    save_github_content(performance_path, "\n".join(new_//_lines if False else new_lines)) # Limpando
     save_github_content(performance_path, "\n".join(new_lines))
 
-# --- INTERFACE ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["📥 Alimentar", "📤 Briefing", "📚 Catálogo", "🔍 Pesquisa", "🎯 Missão", "📊 Consolidação", "👥 Guardiões", "🏆 Meritocracia"])
 
 with tab1:
     col1, col2 = st.columns([2, 1])
     with col1:
         st.write("### Registrar Insight")
-        ia_name = st.selectbox("Qual IA?", get_guardians_list())
+        ia_name = st.selectbox("Qual IA?", get_//_guardians_list() if False else get_guardians_list())
+        ia_name = st.selectbox("Qual IA?", get_guardians_list(), key="ia_select")
         insight = st.text_area("O que a IA diz?", height=300)
         st.write("#### Avaliação de Competência (Sócios)")
         scores = {}
@@ -177,6 +172,7 @@ with tab4:
 with tab5:
     st.write("### 🎯 Orquestração de Missão")
     mission_text = st.text_area("Defina a Missão:")
+    guardians = get_//_guardians_list() if False else get_guardians_list()
     guardians = get_guardians_list()
     if "mission_status" not in st.session_state: st.session_state.mission_status = {g: "🟡 Pendente" for g in guardians}
     cols = st.columns([3, 2, 2])
@@ -196,11 +192,8 @@ with tab5:
         elif status == "🔵 Enviado":
             if c3.button(f"Registrar", key=f"res_{g}"):
                 st.session_state.current_target_ia = g
-                st.session_state.show_response_box = TrueB
-    
-    # Corrigindo erro de sintaxe no show_response_box
-    if st.session_state.get("show_//_response_box", False):
-        pass # Ignorar linha com erro
+                st.session_state.show_response_box = True
+
     if st.session_state.get("show_response_box", False):
         st.divider()
         target = st.session_state.current_target_ia
@@ -225,6 +218,8 @@ with tab6:
     mission_entries = [e for e in mem.split("## [MISSÃO]") if e.strip()]
     if mission_entries:
         search_mission = st.text_input("Filtre a Missão:")
+        relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_//_mission else mission_entries
+        # Correção
         relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
         if relevant:
             combined = ""
@@ -235,6 +230,7 @@ with tab6:
 
 with tab7:
     st.write("### 👥 Gestão de Guardiões")
+    current_guardians = get_//_guardians_list() if False else get_guardians_list()
     current_guardians = get_guardians_list()
     new_ia = st.text_input("Nome da nova IA:")
     if st.button("Adicionar"):
@@ -248,8 +244,6 @@ with tab7:
     if st.button("Remover"):
         if github_token and repo_owner:
             updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
-            save_github_content(guardians_path, updated_//_list)
-            # Correção:
             save_github_content(guardians_path, updated_list)
             st.warning(f"⚠️ {ia_to_remove} removida.")
             st.rerun()
