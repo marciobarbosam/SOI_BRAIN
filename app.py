@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 # --- CONFIGURAÇÕES VISUAIS ---
-st.set_page_config(page_title="C.IA Command Center V2.5", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V2.6", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
@@ -14,16 +14,12 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- CARREGAMENTO DE SECRETS (COFRE) ---
-# Tenta ler do cofre do Streamlit, se não existir, deixa vazio
+# --- CARREGAMENTO DE SECRETS ---
 secret_token = st.secrets.get("GITHUB_TOKEN", "")
 secret_user = st.secrets.get("GITHUB_USER", "")
 secret_repo = st.secrets.get("GITHUB_REPO", "")
 
-# Sidebar para configurações
 st.sidebar.title("⚙️ Configurações MAB_Master")
-
-# Agora os campos já vêm preenchidos com o que está no cofre!
 github_token = st.sidebar.text_input("GitHub Token", value=secret_token, type="password")
 repo_owner = st.sidebar.text_input("Usuário GitHub", value=secret_user)
 repo_name = st.sidebar.text_input("Nome do Repo", value=secret_repo)
@@ -59,17 +55,31 @@ def save_github_content(path, content):
 
 def upload_file_to_github(uploaded_file):
     if not github_token or not repo_owner: return False
+    
+    # 1. Reset do buffer
     uploaded_file.seek(0)
+    
     path = f"{folder_anexos}/{uploaded_file.name}"
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
+    
+    # 2. Verifica se já existe para pegar o SHA
     res_check = requests.get(url, headers=headers).json()
     sha = res_check.get('sha')
+    
+    # 3. Encode e Envio
     content_encoded = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
     data = {"message": f"Upload anexo: {uploaded_file.name}", "content": content_encoded}
     if sha: data["sha"] = sha
+    
     response = requests.put(url, headers=headers, json=data)
-    return response.status_code in [200, 201]
+    
+    # --- PROVA DE VIDA (Verificação Real) ---
+    # Tenta ler o arquivo de volta imediatamente para confirmar que ele existe no servidor
+    verify_res = requests.get(url, headers=headers).json()
+    if 'content' in verify_res:
+        return True # O arquivo realmente existe no GitHub
+    return False
 
 def list_attachments():
     if not github_token or not repo_owner: return []
@@ -100,25 +110,23 @@ with tab1:
             else: st.error("Preencha as configurações na barra lateral!")
 
     with col2:
-        st.write("### 📁 Upload de Anexos")
-        uploaded_files = st.file_uploader("Arquivos", type=["pdf", "docx", "txt", "png", "jpg"], accept_multiple_files=True)
-        if uploaded_files and st.button("Subir todos os arquivos"):
-            if github_token and repo_owner:
-                success_list = []
-                progress_bar = st.progress(0)
-                for i, file in enumerate(uploaded_files):
-                    st.write(f"Processando: {file.name}...")
-                    if upload_file_to_github(file):
-                        success_list.append(file.name)
-                    time.sleep(0.5)
-                    progress_bar.progress((i + 1) / len(uploaded_files))
-                if success_list:
-                    current_mem = get_github_content(file_path) or "# Memória do C.IA"
-                    date_str = datetime.now().strftime("%d/%m/%Y %H:%M")
-                    names = ", ".join(success_list)
-                    save_github_content(file_path, current_mem + f"\n\n## [SISTEMA] Anexos Adicionados: {names}")
-                    st.success(f"✅ {len(success_list)} arquivos subidos!")
-            else: st.error("Preencha as configurações na barra lateral!")
+        st.write("### 📁 Upload de Anexo Único")
+        # MUDANÇA: accept_multiple_files=False para máxima segurança
+        uploaded_file = st.file_uploader("Escolha UM arquivo", type=["pdf", "docx", "txt", "png", "jpg"], accept_multiple_files=False)
+        
+        if uploaded_file is not None:
+            if st.button("Subir Arquivo Agora"):
+                if github_token and repo_owner:
+                    with st.spinner("Enviando e verificando no GitHub..."):
+                        if upload_file_to_github(uploaded_file):
+                            # Log na memória
+                            current_mem = get_github_content(file_path) or "# Memória do C.IA"
+                            date_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                            save_github_content(file_path, current_mem + f"\n\n## [SISTEMA] Anexo Adicionado: {uploaded_file.name} | Data: {date_str}")
+                            st.success(f"✅ Confirmado! {uploaded_file.name} está no GitHub.")
+                        else:
+                            st.error("❌ Erro Crítico: O GitHub não confirmou a existência do arquivo.")
+                else: st.error("Preencha as configurações na barra lateral!")
 
 with tab2:
     st.write("### Gerar Briefing para Nova IA")
