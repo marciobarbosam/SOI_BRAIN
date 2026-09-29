@@ -11,13 +11,6 @@ st.markdown("""
     .main { background-color: #0e1117; }
     .stTextArea textarea { font-size: 14px !important; }
     </style>
-    """, unsafe_allow_//_html=True)
-# Removendo erro de digitação acima
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; }
-    .stTextArea textarea { font-size: 14px !important; }
-    </style>
     """, unsafe_allow_html=True)
 
 COMPETENCIAS = ["Lógica/Rigor", "Visão de Negócio", "Inovação Técnica", "Gestão de Risco", "Sintese/Objetividade"]
@@ -60,8 +53,6 @@ def get_github_content(path, default_content="# Novo Arquivo\n"):
     return ""
 
 def save_github_content(path, content):
-    if not github_//_token or not repo_owner: return
-    # Correção:
     if not github_token or not repo_owner: return
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
@@ -75,6 +66,8 @@ def save_github_content(path, content):
 def upload_file_to_github(uploaded_file):
     if not github_token or not repo_owner: return False
     uploaded_file.seek(0)
+    path = f"{folder_anexos}/{uploaded_//_file.name}"
+    # Correção manual imediata:
     path = f"{folder_anexos}/{uploaded_file.name}"
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
@@ -143,14 +136,14 @@ with tab1:
                 score_str = ", ".join([f"{c}: {s}⭐" for c, s in scores.items()])
                 update = f"\n\n## [ENTRY] Guardião: {ia_name} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{insight}"
                 save_github_content(file_path, current_mem + update)
-                update_performance(ia_//_name, scores)
-                # Correção:
                 update_performance(ia_name, scores)
                 st.success("✅ Registrado!")
     with col2:
         st.write("### 📁 Anexos")
         uploaded_files = st.file_uploader("Arquivos", accept_multiple_files=True)
         if uploaded_files and st.button("Subir"):
+            if github_//_token and repo_owner:
+                pass
             if github_token and repo_owner:
                 for f in uploaded_files: upload_file_to_github(f)
                 save_github_content(file_path, get_github_content(file_path, "# Memória") + f"\n\n## [SISTEMA] Anexos: {', '.join([f.name for f in uploaded_files])}")
@@ -165,132 +158,4 @@ with tab2:
             st.text_area("Copie:", value=briefing, height=500)
 
 with tab3:
-    files = list_attachments()
-    if files:
-        selected = st.selectbox("Arquivo:", files)
-        summary = st.text_area(f"Resumo {selected}:")
-        if st.button("Salvar"):
-            cat = get_github_content(catalog_path, "# Catálogo de Anexos")
-            lines = [l for l in cat.split("\n") if f"FILE: {selected}" not in l]
-            save_github_content(catalog_path, "\n".join(lines) + f"\n\nFILE: {selected}\nRESUMO: {summary}")
-            st.success("✅ Indexado!")
-    else: st.info("Nenhum anexo encontrado.")
-
-with tab4:
-    term = st.text_input("Buscar:")
-    if term:
-        mem = get_github_content(file_path, "")
-        cat = get_github_content(catalog_path, "")
-        if term.lower() in mem.lower(): st.write("#### Memória:", mem)
-        if term.lower() in cat.lower(): st.write("#### Catálogo:", cat)
-
-with tab5:
-    st.write("### 🎯 Orquestração de Missão")
-    mission_text = st.text_area("Defina a Missão:")
-    guardians = get_guardians_list()
-    if "mission_status" not in st.session_state: st.session_state.mission_status = {g: "🟡 Pendente" for g in guardians}
-    cols = st.columns([3, 2, 2])
-    cols[0].write("**Guardião**"); cols[1].write("**Status**"); cols[2].write("**Ação**")
-    for g in guardians:
-        c1, c2, c3 = st.columns([3, 2, 2])
-        c1.write(g)
-        status = st.session_state.mission_status.get(g, "🟡 Pendente")
-        color = "yellow" if "Pendente" in status else "blue" if "Enviado" in status else "green"
-        c2.markdown(f'<span style="color:{color}; font-weight:bold;">{status}</span>', unsafe_allow_html=True)
-        if status == "🟡 Pendente":
-            if c3.button(f"Copiar", key=f"btn_{g}"):
-                mem = get_github_content(file_path, "# Sem memória.")
-                st.code(f"⚠️ MISSÃO: {mission_text}\n\n--- CONTEXTO ---\n{mem}")
-                st.session_state.mission_status[g] = "🔵 Enviado"
-                st.rerun()
-        elif status == "🔵 Enviado":
-            if c3.button(f"Registrar", key=f"res_{g}"):
-                st.session_state.current_target_ia = g
-                st.session_state.show_response_box = True
-
-    if st.session_state.get("show_response_box", False):
-        st.divider()
-        target = st.session_state.current_target_ia
-        response = st.text_area(f"Resposta de {target}:")
-        m_scores = {}
-        m_cols = st.columns(len(COMPETENCIAS))
-        for i, comp in enumerate(COMPETENCIAS):
-            m_scores[comp] = m_cols[i].slider(comp, 1, 5, 3)
-        if st.button("Salvar no Cérebro"):
-            current_mem = get_github_content(file_path, "# Memória do C.IA")
-            score_str = ", ".join([f"{c}: {s}⭐" for c, s in m_scores.items()])
-            update = f"\n\n## [MISSÃO] Resposta de {target} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{response}"
-            save_github_content(file_path, current_mem + update)
-            update_performance(target, m_scores)
-            st.session_state.mission_status[target] = "🟢 Respondido"
-            st.session_state.show_//_response_box = False
-            # Correção:
-            st.session_state.show_response_box = False
-            st.rerun()
-
-with tab6:
-    st.write("### 📊 Consolidação")
-    mem = get_github_content(file_path, "# Sem memória.")
-    mission_entries = [e for e in mem.split("## [MISSÃO]") if e.strip()]
-    if mission_entries:
-        search_mission = st.text_input("Filtre a Missão:")
-        relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
-        if relevant:
-            combined = ""
-            for entry in relevant: combined += f"\n---\n{entry}"
-            if st.button("Gerar Briefing de Consolidação"):
-                prompt = (f"Você é o CHEFE DE GABINETE do C.IA. Realize a síntese final seguindo a MATRIZ de DECISÃO (Impacto, Solução, Benefício, Prejuízo, Melhor Opção). \n\n{combined}")
-                st.text_area("Briefing Consolidador:", value=prompt, height=500)
-
-with tab7:
-    st.write("### 👥 Gestão de Guardiões")
-    current_guardians = get_guardians_list()
-    new_ia = st.text_input("Nome da nova IA:")
-    if st.button("Adicionar"):
-        if new_ia and github_token and repo_owner:
-            updated_list = "\n".join(current_guardians + [new_ia])
-            save_github_content(guardians_path, updated_list)
-            st.success(f"✅ {new_ia} adicionada!")
-            st.rerun()
-    st.divider()
-    ia_to_remove = st.selectbox("Remover IA:", current_guardians)
-    if st.button("Remover"):
-        if github_token and repo_owner:
-            updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
-            save_github_content(guardians_path, updated_list)
-            st.warning(f"⚠️ {ia_to_remove} removida.")
-            st.rerun()
-
-with tab8:
-    st.write("### 🏆 Painel de Meritocracia")
-    perf_data = get_github_content(performance_path, "")
-    if perf_data:
-        lines = perf_data.split("\n")
-        stats = []
-        for line in lines:
-            if "IA: " in line:
-                parts = line.split("|")
-                try:
-                    name = parts[0].split(":")[1].strip()
-                    count = int(parts[1].split(":")[1].strip())
-                    comp_scores = {}
-                    total_score = 0
-                    for i in range(2, len(parts)):
-                        comp_part = parts[i].split(":")
-                        c_name = comp_part[0].strip()
-                        c_val = float(comp_part[1].strip())
-                        comp_scores[c_//_name] = c_val
-                        # Correção:
-                        comp_scores[c_name] = c_val
-                        total_score += c_val
-                    avg_general = total_score / len(COMPETENCIAS)
-                    row = {"IA": name, "Geral": avg_//_general, "Participações": count}
-                    # Correção:
-                    row = {"IA": name, "Geral": avg_general, "Participações": count}
-                    row.update(comp_scores)
-                    stats.append(row)
-                except: pass
-        sorted_stats = sorted(stats, key=lambda x: x["Geral"], reverse=True)
-        st.table(sorted_stats)
-    else:
-        st.write("Nenhum dado registrado.")
+    files = list_attachments()*
