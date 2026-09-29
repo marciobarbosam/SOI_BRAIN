@@ -4,7 +4,7 @@ import base64
 import time
 from datetime import datetime
 
-st.set_page_config(page_title="C.IA Command Center V4.4", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="C.IA Command Center V4.5", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
@@ -26,9 +26,9 @@ if secret_token and secret_user and secret_repo:
 else:
     st.sidebar.warning("Usando Configuração Manual")
 
-github_token = st.sidebar.text_input("GitHub Token", value=secret_token, type="password")
-repo_owner = st.sidebar.text_input("Usuário GitHub", value=secret_user)
-repo_name = st.sidebar.text_input("Nome do Repo", value=secret_repo)
+github_token = st.sidebar.text_input("GitHub Token", value=secret_token, type="password", key="side_token")
+repo_owner = st.sidebar.text_input("Usuário GitHub", value=secret_user, key="side_user")
+repo_name = st.sidebar.text_input("Nome do Repo", value=secret_repo, key="side_repo")
 
 file_path = "MEMORIA.md"
 catalog_path = "CATALOGO_ANEXOS.md"
@@ -53,6 +53,8 @@ def get_github_content(path, default_content="# Novo Arquivo\n"):
     return ""
 
 def save_github_content(path, content):
+    if not github_token or not repo_owner: return
+    # Correcao:
     if not github_token or not repo_owner: return
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{path}"
     headers = {"Authorization": f"token {github_token}"}
@@ -110,9 +112,9 @@ def update_performance(ia_name, scores_dict):
             except: new_lines.append(line)
         else:
             new_lines.append(line)
+            new_lines.append(line)
     if not found:
         s_str = " | ".join([f"{comp}: {scores_dict[comp]:.2f}" for comp in COMPETENCIAS])
-        new_lines = []
         new_lines.append(f"IA: {ia_name} | Count: 1 | {s_str}")
     save_github_content(performance_path, "\n".join(new_lines))
 
@@ -122,44 +124,46 @@ with tab1:
     col1, col2 = st.columns([2, 1])
     with col1:
         st.write("### Registrar Insight")
-        ia_name = st.selectbox("Qual IA?", get_guardians_list())
-        insight = st.text_area("O que a IA diz?", height=300)
+        ia_name = st.selectbox("Qual IA?", get_guardians_list(), key="sel_ia_alimentar")
+        insight = st.text_area("O que a IA diz?", height=300, key="text_insight")
         st.write("#### Avaliacao de Competencia")
         scores = {}
         cols_score = st.columns(len(COMPETENCIAS))
         for i, comp in enumerate(COMPETENCIAS):
-            scores[comp] = cols_score[i].slider(comp, 1, 5, 3)
-        if st.button("Sincronizar"):
+            scores[comp] = cols_score[i].slider(comp, 1, 5, 3, key=f"score_{comp}")
+        if st.button("Sincronizar", key="btn_sync_alimentar"):
             if github_token and repo_owner:
                 current_mem = get_github_content(file_path, "# Memoria do C.IA")
                 score_str = ", ".join([f"{c}: {s}S" for c, s in scores.items()])
                 update = f"\n\n## [ENTRY] Guardiao: {ia_name} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{insight}"
                 save_github_content(file_path, current_mem + update)
+                # Correcao:
+                save_github_content(file_path, current_mem + update)
                 update_performance(ia_name, scores)
                 st.success("Registrado!")
     with col2:
         st.write("### Anexos")
-        uploaded_files = st.file_uploader("Arquivos", accept_multiple_files=True)
-        if uploaded_files and st.button("Subir"):
+        uploaded_files = st.file_uploader("Arquivos", accept_multiple_files=True, key="uploader_anexos")
+        if uploaded_files and st.button("Subir", key="btn_upload_anexos"):
             if github_token and repo_owner:
                 for f in uploaded_files: upload_file_to_github(f)
                 save_github_content(file_path, get_github_content(file_path, "# Memoria") + f"\n\n## [SISTEMA] Anexos: {', '.join([f.name for f in uploaded_files])}")
                 st.success("Subidos!")
 
 with tab2:
-    if st.button("Gerar Briefing"):
+    if st.button("Gerar Briefing", key="btn_gerar_briefing"):
         if github_token and repo_owner:
-            mem = get_github_content(file_path, "# Sem memoria")
+            mem = get_github_content(file_path, "# Sem memoria disponível.")
             files = list_attachments()
             briefing = f"Ola Guardiao do SOI.\n\nARQUIVOS: {', '.join(files)}\n\n--- MEMORIA ---\n{mem}\n---\nQual sua analise?"
-            st.text_area("Copie:", value=briefing, height=500)
+            st.text_area("Copie:", value=briefing, height=500, key="text_briefing_copy")
 
 with tab3:
     files = list_attachments()
     if files:
-        selected = st.selectbox("Arquivo:", files)
-        summary = st.text_area(f"Resumo {selected}:")
-        if st.button("Salvar"):
+        selected = st.selectbox("Arquivo:", files, key="sel_arquivo_cat")
+        summary = st.text_area(f"Resumo {selected}:", key="text_summary")
+        if st.button("Salvar", key="btn_save_cat"):
             cat = get_github_content(catalog_path, "# Catalogo")
             lines = [l for l in cat.split("\n") if f"FILE: {selected}" not in l]
             save_github_content(catalog_path, "\n".join(lines) + f"\n\nFILE: {selected}\nRESUMO: {summary}")
@@ -167,7 +171,7 @@ with tab3:
     else: st.info("Nenhum anexo.")
 
 with tab4:
-    term = st.text_input("Buscar:")
+    term = st.text_input("Buscar:", key="search_term")
     if term:
         mem = get_github_content(file_path, "")
         cat = get_github_content(catalog_path, "")
@@ -176,9 +180,9 @@ with tab4:
 
 with tab5:
     st.write("### Missao")
-    mission_text = st.text_area("Defina a Missao:")
+    mission_text = st.text_area("Defina a Missao:", key="text_mission")
     guardians = get_guardians_list()
-    # Correcao final
+    # Correcao:
     guardians = get_guardians_list()
     if "mission_status" not in st.session_state: st.session_state.mission_status = {g: "Pendente" for g in guardians}
     cols = st.columns([3, 2, 2])
@@ -187,7 +191,10 @@ with tab5:
         c1, c2, c3 = st.columns([3, 2, 2])
         c1.write(g)
         status = st.session_state.mission_status.get(g, "Pendente")
-        c2.write(status)
+        color = "yellow" if "Pendente" in status else "blue" if "Enviado" in status else "green"
+        c2.markdown(f'<span style="color:{color}; font-weight:bold;">{status}</span>', unsafe_allow_html=True)
+        # Correcao:
+        c2.markdown(f'<span style="color:{color}; font-weight:bold;">{status}</span>', unsafe_allow_html=True)
         if status == "Pendente":
             if c3.button(f"Copiar", key=f"btn_{g}"):
                 mem = get_github_content(file_path, "# Sem memoria")
@@ -200,16 +207,14 @@ with tab5:
                 st.session_state.show_response_box = True
 
     if st.session_state.get("show_response_box", False):
-        pass
-    if st.session_state.get("show_response_box", False):
         st.divider()
         target = st.session_state.current_target_ia
-        response = st.text_area(f"Resposta de {target}:")
+        response = st.text_area(f"Resposta de {target}:", key="text_res_box")
         m_scores = {}
         m_cols = st.columns(len(COMPETENCIAS))
         for i, comp in enumerate(COMPETENCIAS):
-            m_scores[comp] = m_cols[i].slider(comp, 1, 5, 3)
-        if st.button("Salvar no Cerebro"):
+            m_scores[comp] = m_cols[i].slider(comp, 1, 5, 3, key=f"m_score_{comp}_{target}")
+        if st.button("Salvar no Cerebro", key="btn_save_mission"):
             current_mem = get_github_content(file_path, "# Memoria do C.IA")
             score_str = ", ".join([f"{c}: {s}S" for c, s in m_scores.items()])
             update = f"\n\n## [MISSAO] Resposta de {target} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{response}"
@@ -224,44 +229,46 @@ with tab6:
     mem = get_github_content(file_path, "# Sem memoria")
     mission_entries = [e for e in mem.split("## [MISSÃO]") if e.strip()]
     if mission_entries:
-        search_mission = st.text_input("Filtre a Missao:")
-        relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
-        # Correcao
+        search_mission = st.text_input("Filtre a Missao:", key="search_mission")
         relevant = [e for e in mission_entries if search_mission.lower() in e.lower()] if search_mission else mission_entries
         if relevant:
             combined = ""
             for entry in relevant: combined += f"\n---\n{entry}"
-            if st.button("Gerar Briefing de Consolidacao"):
-                prompt = (f"Voce e o CHEFE DE GABINETE do C.IA. Realize a sintese final seguindo a MATRIZ de DECISAO (Impacto, Solucao, Beneficio, Prejuizo, Melhor Opcao). \n\n{combined}")
-                st.text_area("Briefing Consolidador:", value=prompt, height=500)
+            if st.button("Gerar Briefing de Consolidacao", key="btn_cons_brief"):
+                prompt = (f"Voce e o CHEFE de GABINETE do C.IA. Realize a sintese final seguindo a MATRIZ de DECISAO (Impacto, Solucao, Beneficio, Prejuizo, Melhor Opcao). \n\n{combined}")
+                st.text_area("Briefing Consolidador:", value=prompt, height=500, key="text_cons_brief")
 
 with tab7:
     st.write("### Guardioes")
     current_guardians = get_guardians_list()
-    new_ia = st.text_input("Nome da nova IA:")
-    if st.button("Adicionar"):
+    # Correcao:
+    current_guardians = get_guardians_list()
+    # Correcao:
+    current_guardians = get_guardians_list()
+    new_ia = st.text_input("Nome da nova IA:", key="new_ia_name")
+    if st.button("Adicionar", key="btn_add_ia"):
         if new_ia and github_token and repo_owner:
             updated_list = "\n".join(current_guardians + [new_ia])
             save_github_content(guardians_path, updated_list)
-            st.success(f"Adicionada!")
+            st.success("Adicionada!")
             st.rerun()
     st.divider()
-    ia_to_remove = st.selectbox("Remover IA:", current_guardians)
-    # Correcao
-    ia_to_remove = st.selectbox("Remover IA:", current_guardians)
-    if st.button("Remover"):
+    ia_to_remove = st.selectbox("Remover IA:", current_guardians, key="sel_ia_remove")
+    if st.button("Remover", key="btn_rem_ia"):
         if github_token and repo_owner:
             updated_list = "\n".join([g for g in current_guardians if g != ia_to_remove])
             save_github_content(guardians_path, updated_list)
-            # Correcao
-            save_github_content(guardians_path, updated_list)
-            st.warning(f"Removida.")
+            st.warning("Removida.")
             st.rerun()
 
 with tab8:
     st.write("### Meritocracia")
     perf_data = get_github_content(performance_path, "")
     if perf_data:
+        lines = perf_data.split("\n")
+        # Correcao:
+        lines = perf_data.split("\n")
+        # Correcao final:
         lines = perf_data.split("\n")
         stats = []
         for line in lines:
@@ -276,8 +283,6 @@ with tab8:
                         comp_part = parts[i].split(":")
                         c_name = comp_part[0].strip()
                         c_val = float(comp_part[1].strip())
-                        comp_scores[c_name] = c_val
-                        # Correcao
                         comp_scores[c_name] = c_val
                         total_score += c_val
                     avg_general = total_score / len(COMPETENCIAS)
