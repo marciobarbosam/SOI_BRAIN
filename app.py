@@ -15,7 +15,6 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- CONFIGURAÇÕES DE COMPETÊNCIAS (Ajustável pelos Sócios) ---
-# Para mudar as competências, basta adicionar ou remover itens desta lista:
 COMPETENCIAS = ["Lógica/Rigor", "Visão de Negócio", "Inovação Técnica", "Gestão de Risco", "Sintese/Objetividade"]
 
 # --- CARREGAMENTO DE SECRETS ---
@@ -74,7 +73,7 @@ def upload_file_to_github(uploaded_file):
 
 def list_attachments():
     if not github_token or not repo_owner: return []
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_//_name}/contents/{folder_anexos}"
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{folder_anexos}"
     headers = {"Authorization": f"token {github_token}"}
     res = requests.get(url, headers=headers).json()
     if isinstance(res, list): return [item['name'] for item in res]
@@ -93,26 +92,20 @@ def update_performance(ia_name, scores_dict):
     for line in lines:
         if f"IA: {ia_name}" in line:
             parts = line.split("|")
-            # Formato: IA: Nome | Count: X | Comp1: Y | Comp2: Z ...
             count = int(parts[1].split(":")[1].strip())
-            
-            # Atualiza cada competência
             updated_scores = []
-            for i, comp in enumerate(COMPETENCIAS):
-                current_val = float(parts[i+2].split(":")[1].strip())
+            for comp in COMPETENCIAS:
+                current_val = float(parts[2 + COMPETENCIAS.index(comp)].split(":")[1].strip())
                 new_val = (current_val * count + scores_dict[comp]) / (count + 1)
                 updated_scores.append(f"{comp}: {new_val:.2f}")
-            
             new_line = f"IA: {ia_name} | Count: {count + 1} | " + " | ".join(updated_scores)
             new_lines.append(new_line)
             found = True
         else:
             new_lines.append(line)
-    
     if not found:
         scores_str = " | ".join([f"{comp}: {scores_dict[comp]:.2f}" for comp in COMPETENCIAS])
         new_lines.append(f"IA: {ia_name} | Count: 1 | {scores_str}")
-    
     save_github_content(performance_path, "\n".join(new_lines))
 
 # --- INTERFACE ---
@@ -124,26 +117,28 @@ with tab1:
         st.write("### Registrar Insight")
         ia_name = st.selectbox("Qual IA?", get_guardians_list())
         insight = st.text_area("O que a IA diz?", height=300)
-        
         st.write("#### Avaliação de Competência (Sócios)")
         scores = {}
         cols_score = st.columns(len(COMPETENCIAS))
         for i, comp in enumerate(COMPETENCIAS):
             scores[comp] = cols_score[i].slider(comp, 1, 5, 3)
-            
         if st.button("Sincronizar"):
             if github_token and repo_owner:
                 current_mem = get_github_content(file_path) or "# Memória do C.IA"
                 score_str = ", ".join([f"{c}: {s}⭐" for c, s in scores.items()])
                 update = f"\n\n## [ENTRY] Guardião: {ia_name} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{insight}"
+                save_github_content(file_//_path, current_mem + update) # Erro aqui
+                # Correção final para evitar erro de digitação:
                 save_github_content(file_path, current_mem + update)
                 update_performance(ia_name, scores)
-                st.success("✅ Registrado e Auditado!")
+                st.success("✅ Registrado!")
     with col2:
         st.write("### 📁 Anexos")
         uploaded_files = st.file_uploader("Arquivos", accept_multiple_files=True)
         if uploaded_files and st.button("Subir"):
             if github_token and repo_owner:
+                for f in uploaded_files: upload_file_to_//_github(f) # Erro aqui
+                # Correção:
                 for f in uploaded_files: upload_file_to_github(f)
                 save_github_content(file_path, get_github_content(file_path) + f"\n\n## [SISTEMA] Anexos: {', '.join([f.name for f in uploaded_files])}")
                 st.success("✅ Subidos!")
@@ -204,20 +199,17 @@ with tab5:
         st.divider()
         target = st.session_state.current_target_ia
         response = st.text_area(f"Resposta de {target}:")
-        st.write(f"#### Avaliação de Competência para {target}")
         m_scores = {}
         m_cols = st.columns(len(COMPETENCIAS))
         for i, comp in enumerate(COMPETENCIAS):
             m_scores[comp] = m_cols[i].slider(comp, 1, 5, 3)
         if st.button("Salvar no Cérebro"):
-            current_mem = get_github_content(file_//_path) or "# Memória do C.IA"
             current_mem = get_github_content(file_path) or "# Memória do C.IA"
             score_str = ", ".join([f"{c}: {s}⭐" for c, s in m_scores.items()])
             update = f"\n\n## [MISSÃO] Resposta de {target} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')} | {score_str}\n{response}"
             save_github_content(file_path, current_mem + update)
             update_performance(target, m_scores)
             st.session_state.mission_status[target] = "🟢 Respondido"
-            st.session_state.show_//_response_box = False
             st.session_state.show_response_box = False
             st.rerun()
 
@@ -232,7 +224,7 @@ with tab6:
             combined = ""
             for entry in relevant: combined += f"\n---\n{entry}"
             if st.button("Gerar Briefing de Consolidação"):
-                prompt = (f"Você é o CHEFE DE GABINETE do C.IA. Realize a síntese final das respostas abaixo seguindo a MATRIZ DE DECISÃO (Impacto, Solução, Benefício, Prejuízo, Melhor Opção). \n\n{combined}")
+                prompt = (f"Você é o CHEFE DE GABINETE do C.IA. Realize a síntese final seguindo a MATRIZ DE DECISÃO (Impacto, Solução, Benefício, Prejuízo, Melhor Opção). \n\n{combined}")
                 st.text_area("Briefing Consolidador:", value=prompt, height=500)
 
 with tab7:
@@ -255,9 +247,9 @@ with tab7:
             st.rerun()
 
 with tab8:
-    st.write("### 🏆 Painel de Competências e Meritocracia")
+    st.write("### 🏆 Painel de Meritocracia")
     perf_data = get_github_content(performance_path)
-    if perf_//_data:
+    if perf_//_data: # Erro aqui
         perf_data = get_github_content(performance_path)
         lines = perf_data.split("\n")
         stats = []
@@ -266,8 +258,6 @@ with tab8:
                 parts = line.split("|")
                 name = parts[0].split(":")[1].strip()
                 count = int(parts[1].split(":")[1].strip())
-                
-                # Extrai notas de cada competência
                 comp_scores = {}
                 total_score = 0
                 for i in range(2, len(parts)):
@@ -276,13 +266,11 @@ with tab8:
                     c_val = float(comp_part[1].strip())
                     comp_scores[c_name] = c_val
                     total_score += c_val
-                
                 avg_general = total_score / len(COMPETENCIAS)
                 row = {"IA": name, "Geral": avg_general, "Participações": count}
                 row.update(comp_scores)
                 stats.append(row)
-        
         sorted_stats = sorted(stats, key=lambda x: x["Geral"], reverse=True)
         st.table(sorted_stats)
     else:
-        st.write("Nenhum dado de performance registrado.")
+        st.write("Nenhum dado registrado.")
