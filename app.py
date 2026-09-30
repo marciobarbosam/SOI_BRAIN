@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import requests
 import base64
@@ -816,4 +815,3 @@ with tab5:
         if g not in st.session_state.mission_status:
 
             st.session
-```
