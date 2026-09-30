@@ -1,91 +1,144 @@
 import streamlit as st
 import requests
-import base64
-from datetime import datetime
-
-
-# ============================================================
-# CONFIGURAÇÃO DA APLICAÇÃO
-# ============================================================
 
 st.set_page_config(
-    page_title="C.IA Command Center V5.0",
-    page_icon="🧠",
-    layout="wide"
+    page_title="Teste C.IA",
+    page_icon="🧠"
 )
 
-st.markdown(
-    """
-    <style>
-    .main {
-        background-color: #0e1117;
-    }
+st.title("🧠 C.IA — Teste de Conexão")
 
-    .stTextArea textarea {
-        font-size: 14px !important;
-    }
+st.write("Aplicação carregada corretamente.")
 
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+token = st.secrets.get("GITHUB_TOKEN", "")
+user = st.secrets.get("GITHUB_USER", "")
+repo = st.secrets.get("GITHUB_REPO", "")
 
+st.subheader("Credenciais detectadas")
 
-# ============================================================
-# CONSTANTES
-# ============================================================
+st.write("Token:", "✅ Encontrado" if token else "❌ Não encontrado")
+st.write("Usuário:", user if user else "❌ Não encontrado")
+st.write("Repositório:", repo if repo else "❌ Não encontrado")
 
-COMPETENCIAS = [
-    "Lógica/Rigor",
-    "Visão de Negócio",
-    "Inovação Técnica",
-    "Gestão de Risco",
-    "Sintese/Objetividade"
-]
+st.divider()
 
-MEMORIA_PATH = "MEMORIA.md"
-CATALOGO_PATH = "CATALOGO_ANEXOS.md"
-GUARDIANS_PATH = "GUARDIANS.txt"
-PERFORMANCE_PATH = "PERFORMANCE_C_IA.md"
-VEREDICTOS_PATH = "VEREDITOS_FINAIS.md"
-ANEXOS_PATH = "anexos"
+if st.button("🔎 Testar GitHub"):
 
+    if not token or not user or not repo:
 
-# ============================================================
-# CONFIGURAÇÃO DO GITHUB
-# ============================================================
+        st.error("As credenciais do GitHub não estão completas.")
 
-secret_token = st.secrets.get("GITHUB_TOKEN", "")
-secret_user = st.secrets.get("GITHUB_USER", "")
-secret_repo = st.secrets.get("GITHUB_REPO", "")
+    else:
 
-st.sidebar.title("⚙️ Configurações MAB_Master")
+        url = f"https://api.github.com/repos/{user}/{repo}"
 
-if secret_token and secret_user and secret_repo:
-    st.sidebar.success("Segredos carregados")
-else:
-    st.sidebar.warning("Configuração manual")
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
 
+        try:
 
-github_token = st.sidebar.text_input(
-    "GitHub Token",
-    value=secret_token,
-    type="password"
-)
+            response = requests.get(
+                url,
+                headers=headers,
+                timeout=20
+            )
 
-repo_owner = st.sidebar.text_input(
-    "Usuário GitHub",
-    value=secret_user
-)
+            st.write("HTTP:", response.status_code)
 
-repo_name = st.sidebar.text_input(
-    "Nome do Repositório",
-    value=secret_repo
-)
+            if response.status_code == 200:
 
+                data = response.json()
 
-# ==========
+                st.success("✅ GitHub conectado corretamente.")
+
+                st.write(
+                    "Repositório:",
+                    data.get("full_name")
+                )
+
+            else:
+
+                st.error(
+                    f"GitHub respondeu HTTP {response.status_code}"
+                )
+
+                st.code(response.text)
+
+        except Exception as error:
+
+            st.error(
+                f"Erro de conexão: {error}"
+            )
+
+st.divider()
+
+if st.button("📖 Ler MEMORIA.md"):
+
+    if not token or not user or not repo:
+
+        st.error("Credenciais incompletas.")
+
+    else:
+
+        url = (
+            f"https://api.github.com/repos/"
+            f"{user}/{repo}/contents/MEMORIA.md"
+        )
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+
+        try:
+
+            response = requests.get(
+                url,
+                headers=headers,
+                timeout=20
+            )
+
+            st.write(
+                "HTTP:",
+                response.status_code
+            )
+
+            if response.status_code == 200:
+
+                import base64
+
+                data = response.json()
+
+                content = base64.b64decode(
+                    data["content"].replace("\n", "")
+                ).decode("utf-8")
+
+                st.success(
+                    f"MEMORIA.md lida com sucesso — "
+                    f"{len(content)} caracteres."
+                )
+
+                st.text_area(
+                    "Conteúdo:",
+                    content,
+                    height=500
+                )
+
+            else:
+
+                st.error(
+                    f"Não foi possível ler MEMORIA.md. "
+                    f"HTTP {response.status_code}"
+                )
+
+                st.code(response.text)
+
+        except Exception as error:
+
+            st.error(
+                f"Erro ao ler MEMORIA.md: {error}"
+            )
